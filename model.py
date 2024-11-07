@@ -1,7 +1,13 @@
+# First, install required dependencies
+!pip install -q pylibjpeg pylibjpeg-libjpeg gdcm
+!pip install -q pydicom==2.3.1
+!pip install -q timm albumentations
+
 import os
 import pandas as pd
 import numpy as np
 import pydicom
+from pydicom.pixel_data_handlers.util import apply_voi_lut
 import cv2
 from sklearn.model_selection import GroupKFold
 import torch
@@ -12,6 +18,7 @@ from albumentations.pytorch import ToTensorV2
 import timm
 from tqdm import tqdm
 import warnings
+import torch.cuda.amp as amp
 warnings.filterwarnings('ignore')
 
 class Config:
@@ -24,7 +31,8 @@ class Config:
     # Training parameters
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
     EPOCHS = 5
-    BATCH_SIZE = 4  # Reduced batch size due to image size
+    BATCH_SIZE = 4
+    GRADIENT_ACCUMULATION_STEPS = 4
     IMAGE_SIZE = 1024
     NUM_WORKERS = 2
     SEED = 42
@@ -35,13 +43,16 @@ class Config:
     NUM_CLASSES = 1
     LEARNING_RATE = 1e-4
     
+    # Mixed precision training
+    USE_AMP = True
+
 def seed_everything(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     os.environ['PYTHONHASHSEED'] = str(seed)
-    
+
 def prepare_dataframe(df):
     """Prepare the dataframe for training"""
     # Convert categorical columns to numeric
@@ -59,6 +70,32 @@ def prepare_dataframe(df):
     
     return df
 
+def read_dicom(path):
+    """Read DICOM image and preprocess it properly"""
+    try:
+        dicom = pydicom.dcmread(path)
+        
+        # VOI LUT transformation
+        if hasattr(dicom, 'WindowCenter'):
+            voi_lut = apply_voi_lut(dicom.pixel_array, dicom)
+        else:
+            voi_lut = dicom.pixel_array
+
+        # Normalize to 8-bit
+        if voi_lut.dtype != np.uint8:
+            if voi_lut.max() < 256:
+                img_8bit = voi_lut.astype(np.uint8)
+            else:
+                img_8bit = ((voi_lut - voi_lut.min()) / (voi_lut.max() - voi_lut.min()) * 255).astype(np.uint8)
+        else:
+            img_8bit = voi_lut
+
+        return img_8bit
+    
+    except Exception as e:
+        print(f"Error reading {path}: {str(e)}")
+        return None
+
 class MammographyDataset(Dataset):
     def __init__(self, df, image_dir, transform=None, train=True):
         self.df = df
@@ -69,47 +106,25 @@ class MammographyDataset(Dataset):
     def __len__(self):
         return len(self.df)
     
-    def load_dicom(self, path):
-        dicom = pydicom.dcmread(path)
-        img = dicom.pixel_array
-        
-        # Handle different bit depths
-        if img.dtype != np.uint8:
-            img = ((img - img.min()) / (img.max() - img.min()) * 255).astype(np.uint8)
-            
-        # Ensure image has correct dimensions
-        if len(img.shape) > 2:
-            img = img[:, :, 0]  # Take first channel if multiple channels exist
-            
-        return img
-    
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
         image_path = os.path.join(self.image_dir, str(row.patient_id), f"{row.image_id}.dcm")
         
-        try:
-            image = self.load_dicom(image_path)
-            
-            # Apply transforms
-            if self.transform:
-                augmented = self.transform(image=image)
-                image = augmented['image']
-                
-            if self.train:
-                label = torch.tensor(row.cancer, dtype=torch.float)
-                return image, label
-            else:
-                return image
-                
-        except Exception as e:
-            print(f"Error loading image {image_path}: {str(e)}")
-            # Return a blank image in case of error
+        image = read_dicom(image_path)
+        
+        if image is None:
             image = np.zeros((Config.IMAGE_SIZE, Config.IMAGE_SIZE), dtype=np.uint8)
-            if self.transform:
-                augmented = self.transform(image=image)
-                image = augmented['image']
-            if self.train:
-                return image, torch.tensor(0, dtype=torch.float)
+        elif len(image.shape) > 2:
+            image = image[:, :, 0]
+        
+        if self.transform:
+            augmented = self.transform(image=image)
+            image = augmented['image']
+        
+        if self.train:
+            label = torch.tensor(row.cancer, dtype=torch.float)
+            return image, label
+        else:
             return image
 
 class MammographyModel(nn.Module):
@@ -132,9 +147,16 @@ def get_transforms(image_size):
         A.VerticalFlip(p=0.5),
         A.RandomRotate90(p=0.5),
         A.ShiftScaleRotate(p=0.5),
-        A.RandomBrightnessContrast(p=0.5),
-        A.GaussNoise(p=0.3),
-        A.GridDistortion(p=0.3),
+        A.OneOf([
+            A.GaussNoise(var_limit=(10.0, 50.0)),
+            A.GaussianBlur(),
+            A.MotionBlur(),
+        ], p=0.3),
+        A.OneOf([
+            A.OpticalDistortion(),
+            A.GridDistortion(),
+        ], p=0.3),
+        A.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.5),
         A.Normalize(mean=[0.485], std=[0.229]),
         ToTensorV2(),
     ])
@@ -147,27 +169,44 @@ def get_transforms(image_size):
     
     return train_transform, valid_transform
 
-def train_one_epoch(model, loader, optimizer, criterion, device):
+def train_one_epoch(model, loader, optimizer, criterion, device, scheduler=None, scaler=None):
     model.train()
     running_loss = 0.0
-    pbar = tqdm(loader, desc='Training')
+    optimizer.zero_grad()
     
-    for images, labels in pbar:
+    pbar = tqdm(enumerate(loader), total=len(loader), desc='Training')
+    
+    for step, (images, labels) in pbar:
         images = images.to(device)
         labels = labels.to(device)
         
-        optimizer.zero_grad()
-        outputs = model(images)
-        loss = criterion(outputs, labels.unsqueeze(1))
+        with amp.autocast(enabled=Config.USE_AMP):
+            outputs = model(images)
+            loss = criterion(outputs, labels.unsqueeze(1))
+            loss = loss / Config.GRADIENT_ACCUMULATION_STEPS
         
-        loss.backward()
-        optimizer.step()
+        if Config.USE_AMP:
+            scaler.scale(loss).backward()
+            if (step + 1) % Config.GRADIENT_ACCUMULATION_STEPS == 0:
+                scaler.step(optimizer)
+                scaler.update()
+                optimizer.zero_grad()
+                if scheduler is not None:
+                    scheduler.step()
+        else:
+            loss.backward()
+            if (step + 1) % Config.GRADIENT_ACCUMULATION_STEPS == 0:
+                optimizer.step()
+                optimizer.zero_grad()
+                if scheduler is not None:
+                    scheduler.step()
         
-        running_loss += loss.item()
+        running_loss += loss.item() * Config.GRADIENT_ACCUMULATION_STEPS
         pbar.set_postfix({'loss': f'{loss.item():.4f}'})
-        
+    
     return running_loss / len(loader)
 
+@torch.no_grad()
 def validate(model, loader, criterion, device):
     model.eval()
     running_loss = 0.0
@@ -175,23 +214,30 @@ def validate(model, loader, criterion, device):
     targets = []
     
     pbar = tqdm(loader, desc='Validating')
-    with torch.no_grad():
-        for images, labels in pbar:
-            images = images.to(device)
-            labels = labels.to(device)
-            
+    
+    for images, labels in pbar:
+        images = images.to(device)
+        labels = labels.to(device)
+        
+        with amp.autocast(enabled=Config.USE_AMP):
             outputs = model(images)
             loss = criterion(outputs, labels.unsqueeze(1))
-            
-            running_loss += loss.item()
-            predictions.extend(torch.sigmoid(outputs).cpu().numpy())
-            targets.extend(labels.cpu().numpy())
-            
-            pbar.set_postfix({'loss': f'{loss.item():.4f}'})
-            
-    return running_loss / len(loader), predictions, targets
+        
+        running_loss += loss.item()
+        predictions.extend(torch.sigmoid(outputs).cpu().numpy())
+        targets.extend(labels.cpu().numpy())
+        
+        pbar.set_postfix({'loss': f'{loss.item():.4f}'})
+    
+    predictions = np.array(predictions)
+    targets = np.array(targets)
+    auc = roc_auc_score(targets, predictions)
+    
+    return running_loss / len(loader), predictions, targets, auc
 
 def main():
+    print("Starting training pipeline...")
+    
     # Set seed for reproducibility
     seed_everything(Config.SEED)
     
@@ -233,7 +279,8 @@ def main():
         batch_size=Config.BATCH_SIZE,
         shuffle=True,
         num_workers=Config.NUM_WORKERS,
-        pin_memory=True
+        pin_memory=True,
+        drop_last=True
     )
     
     valid_loader = DataLoader(
@@ -257,43 +304,43 @@ def main():
     optimizer = torch.optim.AdamW(model.parameters(), lr=Config.LEARNING_RATE)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer,
-        T_max=Config.EPOCHS
+        T_max=len(train_loader) * Config.EPOCHS // Config.GRADIENT_ACCUMULATION_STEPS
     )
     
-    # Training loop
-    best_loss = float('inf')
+    # Initialize AMP scaler
+    scaler = amp.GradScaler() if Config.USE_AMP else None
     
+    # Training loop
+    best_auc = 0
+    
+    print("Starting training...")
     for epoch in range(Config.EPOCHS):
         print(f'Epoch {epoch + 1}/{Config.EPOCHS}')
         
         train_loss = train_one_epoch(
-            model, train_loader, optimizer, criterion, Config.DEVICE
+            model, train_loader, optimizer, criterion, 
+            Config.DEVICE, scheduler, scaler
         )
         
-        val_loss, predictions, targets = validate(
+        val_loss, predictions, targets, auc = validate(
             model, valid_loader, criterion, Config.DEVICE
         )
         
-        scheduler.step()
-        
         print(f'Train Loss: {train_loss:.4f}')
         print(f'Valid Loss: {val_loss:.4f}')
+        print(f'Valid AUC: {auc:.4f}')
         
-        # Calculate metrics
-        predictions = np.array(predictions) > 0.5
-        targets = np.array(targets)
-        accuracy = (predictions == targets).mean()
-        print(f'Validation Accuracy: {accuracy:.4f}')
-        
-        # Save model if validation loss improves
-        if val_loss < best_loss:
-            best_loss = val_loss
-            model_path = os.path.join(Config.OUTPUT_DIR, f'model_fold_{fold}.pth')
+        # Save model if validation AUC improves
+        if auc > best_auc:
+            best_auc = auc
+            model_path = os.path.join(Config.OUTPUT_DIR, f'model_fold_{fold}_auc_{auc:.4f}.pth')
             torch.save({
                 'epoch': epoch,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-                'loss': best_loss,
+                'scheduler_state_dict': scheduler.state_dict() if scheduler else None,
+                'scaler_state_dict': scaler.state_dict() if scaler else None,
+                'auc': best_auc,
             }, model_path)
             print(f'Model saved to {model_path}')
 
