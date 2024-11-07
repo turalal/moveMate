@@ -1,8 +1,10 @@
-# First, install required dependencies
-!pip install -q pylibjpeg pylibjpeg-libjpeg gdcm
-!pip install -q pydicom==2.3.1
-!pip install -q timm albumentations
 
+!pip uninstall -y numpy scikit-learn
+!pip install numpy==1.23.5
+!pip install scikit-learn==1.2.2
+!pip install -q pydicom==2.3.1
+!pip install -q pylibjpeg pylibjpeg-libjpeg gdcm
+!pip install -q timm albumentations torch==2.0.1
 import os
 import pandas as pd
 import numpy as np
