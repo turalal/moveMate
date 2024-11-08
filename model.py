@@ -1,343 +1,214 @@
-import os
-import pandas as pd
 import numpy as np
+import pandas as pd
 import pydicom
-from pydicom.pixel_data_handlers.util import apply_voi_lut
 import cv2
+from pathlib import Path
 from sklearn.model_selection import GroupKFold
-import torch
-import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
 import albumentations as A
-from albumentations.pytorch import ToTensorV2
-import timm
-from tqdm import tqdm
-import warnings
-import torch.cuda.amp as amp
-warnings.filterwarnings('ignore')
+from tqdm.notebook import tqdm
+import matplotlib.pyplot as plt
+import os
 
-class Config:
-    # Kaggle paths
-    TRAIN_CSV = '/kaggle/input/rsna-breast-cancer-detection/train.csv'
-    TRAIN_DIR = '/kaggle/input/rsna-breast-cancer-detection/train_images'
-    TEST_DIR = '/kaggle/input/rsna-breast-cancer-detection/test_images'
-    OUTPUT_DIR = '/kaggle/working/'
-    
-    # Training parameters
-    DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-    EPOCHS = 5
-    BATCH_SIZE = 4
-    GRADIENT_ACCUMULATION_STEPS = 4
-    IMAGE_SIZE = 1024
-    NUM_WORKERS = 2
-    SEED = 42
-    
-    # Model parameters
-    MODEL_NAME = 'efficientnet_b3'
-    PRETRAINED = True
-    NUM_CLASSES = 1
-    LEARNING_RATE = 1e-4
-    
-    # Mixed precision training
-    USE_AMP = True
-
-def seed_everything(seed):
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-    os.environ['PYTHONHASHSEED'] = str(seed)
-
-def prepare_dataframe(df):
-    """Prepare the dataframe for training"""
-    # Convert categorical columns to numeric
-    df['laterality'] = df['laterality'].map({'L': 0, 'R': 1})
-    df['view'] = df['view'].map({'CC': 0, 'MLO': 1})
-    
-    # Fill missing values
-    df['age'].fillna(df['age'].mean(), inplace=True)
-    df['implant'].fillna(0, inplace=True)
-    df['density'].fillna(df['density'].mode()[0], inplace=True)
-    
-    # Convert density to numeric
-    density_map = {'A': 0, 'B': 1, 'C': 2, 'D': 3}
-    df['density'] = df['density'].map(density_map)
-    
-    return df
-
-def read_dicom(path):
-    """Read DICOM image and preprocess it properly"""
-    try:
-        dicom = pydicom.dcmread(path)
+class RSNAPreprocessor:
+    def __init__(self, base_path="/kaggle/input/rsna-breast-cancer-detection", 
+                 target_size=(2048, 2048),
+                 output_format='png'):
+        self.base_path = Path(base_path)
+        self.train_images_path = self.base_path / "train_images"
+        self.test_images_path = self.base_path / "test_images"
+        self.target_size = target_size
+        self.output_format = output_format.lower()
         
-        # VOI LUT transformation
-        if hasattr(dicom, 'WindowCenter'):
-            voi_lut = apply_voi_lut(dicom.pixel_array, dicom)
-        else:
-            voi_lut = dicom.pixel_array
+        if self.output_format not in ['png', 'jpg', 'jpeg']:
+            raise ValueError("output_format must be 'png' or 'jpg'/'jpeg'")
 
-        # Normalize to 8-bit
-        if voi_lut.dtype != np.uint8:
-            if voi_lut.max() < 256:
-                img_8bit = voi_lut.astype(np.uint8)
+    def get_dicom_path(self, patient_id, image_id, is_train=True):
+        """
+        Get the path to a DICOM file
+        """
+        images_path = self.train_images_path if is_train else self.test_images_path
+        return images_path / str(patient_id) / f"{image_id}"
+
+    def read_dicom(self, patient_id, image_id, is_train=True):
+        """
+        Read and preprocess DICOM image
+        """
+        dicom_path = self.get_dicom_path(patient_id, image_id, is_train)
+        try:
+            # Add .dcm extension if not in the image_id
+            if not str(dicom_path).endswith('.dcm'):
+                dicom_path = Path(str(dicom_path) + '.dcm')
+
+            print(f"Reading DICOM from: {dicom_path}")  # Debug print
+            
+            if not dicom_path.exists():
+                print(f"File not found: {dicom_path}")
+                return None
+                
+            dicom = pydicom.dcmread(dicom_path)
+            
+            # Process image
+            img = dicom.pixel_array
+            
+            # Convert to float and normalize
+            img = img.astype(float)
+            if img.max() != img.min():
+                img = (img - img.min()) / (img.max() - img.min())
+            
+            # Scale to 0-255 range
+            img = (img * 255).astype(np.uint8)
+            
+            # Apply CLAHE for better contrast
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+            img = clahe.apply(img)
+            
+            # Resize while maintaining aspect ratio
+            aspect = img.shape[0] / img.shape[1]
+            if aspect > 1:
+                new_height = self.target_size[0]
+                new_width = int(new_height / aspect)
             else:
-                img_8bit = ((voi_lut - voi_lut.min()) / (voi_lut.max() - voi_lut.min()) * 255).astype(np.uint8)
-        else:
-            img_8bit = voi_lut
+                new_width = self.target_size[1]
+                new_height = int(new_width * aspect)
+            
+            img = cv2.resize(img, (new_width, new_height))
+            
+            # Add padding to reach target size
+            top_pad = (self.target_size[0] - img.shape[0]) // 2
+            bottom_pad = self.target_size[0] - img.shape[0] - top_pad
+            left_pad = (self.target_size[1] - img.shape[1]) // 2
+            right_pad = self.target_size[1] - img.shape[1] - left_pad
+            
+            img = cv2.copyMakeBorder(
+                img, top_pad, bottom_pad, left_pad, right_pad,
+                cv2.BORDER_CONSTANT, value=0
+            )
+            
+            return img
 
-        return img_8bit
-    
-    except Exception as e:
-        print(f"Error reading {path}: {str(e)}")
-        return None
+        except Exception as e:
+            print(f"Error processing image {image_id} for patient {patient_id}: {str(e)}")
+            return None
 
-class MammographyDataset(Dataset):
-    def __init__(self, df, image_dir, transform=None, train=True):
-        self.df = df
-        self.image_dir = image_dir
-        self.transform = transform
-        self.train = train
-        
-    def __len__(self):
-        return len(self.df)
-    
-    def __getitem__(self, idx):
-        row = self.df.iloc[idx]
-        image_path = os.path.join(self.image_dir, str(row.patient_id), f"{row.image_id}.dcm")
-        
-        image = read_dicom(image_path)
-        
-        if image is None:
-            image = np.zeros((Config.IMAGE_SIZE, Config.IMAGE_SIZE), dtype=np.uint8)
-        elif len(image.shape) > 2:
-            image = image[:, :, 0]
-        
-        if self.transform:
-            augmented = self.transform(image=image)
-            image = augmented['image']
-        
-        if self.train:
-            label = torch.tensor(row.cancer, dtype=torch.float)
-            return image, label
-        else:
-            return image
+    def save_image(self, img, output_path):
+        """
+        Save processed image in specified format
+        """
+        if img is not None:
+            if self.output_format == 'png':
+                cv2.imwrite(str(output_path.with_suffix('.png')), img)
+            else:  # jpg/jpeg
+                cv2.imwrite(str(output_path.with_suffix('.jpg')), img, [cv2.IMWRITE_JPEG_QUALITY, 100])
 
-class MammographyModel(nn.Module):
-    def __init__(self, model_name, pretrained=True, num_classes=1):
-        super().__init__()
-        self.model = timm.create_model(
-            model_name, 
-            pretrained=pretrained, 
-            num_classes=num_classes,
-            in_chans=1
-        )
+    def process_and_save(self, metadata_df, output_dir, num_samples=None):
+        """
+        Process images and save them in the specified format
+        """
+        if num_samples:
+            metadata_df = metadata_df.head(num_samples)
         
-    def forward(self, x):
-        return self.model(x)
-
-def get_transforms(image_size):
-    train_transform = A.Compose([
-        A.Resize(image_size, image_size),
-        A.HorizontalFlip(p=0.5),
-        A.VerticalFlip(p=0.5),
-        A.RandomRotate90(p=0.5),
-        A.ShiftScaleRotate(p=0.5),
-        A.OneOf([
-            A.GaussNoise(var_limit=(10.0, 50.0)),
-            A.GaussianBlur(),
-            A.MotionBlur(),
-        ], p=0.3),
-        A.OneOf([
-            A.OpticalDistortion(),
-            A.GridDistortion(),
-        ], p=0.3),
-        A.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.5),
-        A.Normalize(mean=[0.485], std=[0.229]),
-        ToTensorV2(),
-    ])
-    
-    valid_transform = A.Compose([
-        A.Resize(image_size, image_size),
-        A.Normalize(mean=[0.485], std=[0.229]),
-        ToTensorV2(),
-    ])
-    
-    return train_transform, valid_transform
-
-def train_one_epoch(model, loader, optimizer, criterion, device, scheduler=None, scaler=None):
-    model.train()
-    running_loss = 0.0
-    optimizer.zero_grad()
-    
-    pbar = tqdm(enumerate(loader), total=len(loader), desc='Training')
-    
-    for step, (images, labels) in pbar:
-        images = images.to(device)
-        labels = labels.to(device)
+        # Create output directory structure
+        output_dir = Path(output_dir)
+        output_dir.mkdir(exist_ok=True)
         
-        with amp.autocast(enabled=Config.USE_AMP):
-            outputs = model(images)
-            loss = criterion(outputs, labels.unsqueeze(1))
-            loss = loss / Config.GRADIENT_ACCUMULATION_STEPS
+        # Create subdirectories for different views
+        for view in ['CC', 'MLO']:
+            (output_dir / view).mkdir(exist_ok=True)
+            (output_dir / view / 'L').mkdir(exist_ok=True)
+            (output_dir / view / 'R').mkdir(exist_ok=True)
         
-        if Config.USE_AMP:
-            scaler.scale(loss).backward()
-            if (step + 1) % Config.GRADIENT_ACCUMULATION_STEPS == 0:
-                scaler.step(optimizer)
-                scaler.update()
-                optimizer.zero_grad()
-                if scheduler is not None:
-                    scheduler.step()
-        else:
-            loss.backward()
-            if (step + 1) % Config.GRADIENT_ACCUMULATION_STEPS == 0:
-                optimizer.step()
-                optimizer.zero_grad()
-                if scheduler is not None:
-                    scheduler.step()
+        processed_count = 0
+        failed_count = 0
         
-        running_loss += loss.item() * Config.GRADIENT_ACCUMULATION_STEPS
-        pbar.set_postfix({'loss': f'{loss.item():.4f}'})
-    
-    return running_loss / len(loader)
-
-@torch.no_grad()
-def validate(model, loader, criterion, device):
-    model.eval()
-    running_loss = 0.0
-    predictions = []
-    targets = []
-    
-    pbar = tqdm(loader, desc='Validating')
-    
-    for images, labels in pbar:
-        images = images.to(device)
-        labels = labels.to(device)
+        print("\nProcessing metadata shape:", metadata_df.shape)
+        print("Sample row:")
+        print(metadata_df.iloc[0])
         
-        with amp.autocast(enabled=Config.USE_AMP):
-            outputs = model(images)
-            loss = criterion(outputs, labels.unsqueeze(1))
-        
-        running_loss += loss.item()
-        predictions.extend(torch.sigmoid(outputs).cpu().numpy())
-        targets.extend(labels.cpu().numpy())
-        
-        pbar.set_postfix({'loss': f'{loss.item():.4f}'})
-    
-    predictions = np.array(predictions)
-    targets = np.array(targets)
-    auc = roc_auc_score(targets, predictions)
-    
-    return running_loss / len(loader), predictions, targets, auc
+        for idx, row in tqdm(metadata_df.iterrows(), total=len(metadata_df)):
+            try:
+                img = self.read_dicom(
+                    patient_id=str(row['patient_id']),  # Convert to string
+                    image_id=str(row['image_id'])       # Convert to string
+                )
+                
+                if img is not None:
+                    # Create organized directory structure based on view and laterality
+                    view = row['view']      # CC or MLO
+                    laterality = row['laterality']  # L or R
+                    
+                    # Define output path with organized structure
+                    output_path = output_dir / view / laterality / f"{row['patient_id']}_{row['image_id']}"
+                    
+                    # Save the image
+                    self.save_image(img, output_path)
+                    processed_count += 1
+                    
+                    # Save a thumbnail for quick viewing
+                    thumbnail = cv2.resize(img, (512, 512))
+                    thumbnail_path = output_path.with_name(f"{output_path.stem}_thumb")
+                    self.save_image(thumbnail, thumbnail_path)
+                    
+                else:
+                    failed_count += 1
+                    
+            except Exception as e:
+                failed_count += 1
+                print(f"Error processing row {idx}: {str(e)}")
+                continue
+                
+        return processed_count, failed_count
 
 def main():
-    print("Starting training pipeline...")
+    print("Initializing RSNA Mammography Preprocessing...")
     
-    # Set seed for reproducibility
-    seed_everything(Config.SEED)
+    # Initialize preprocessor with PNG output format
+    preprocessor = RSNAPreprocessor(output_format='png')
     
-    # Create output directory
-    os.makedirs(Config.OUTPUT_DIR, exist_ok=True)
-    
-    # Read and prepare data
-    print("Loading and preparing data...")
-    train_df = pd.read_csv(Config.TRAIN_CSV)
-    train_df = prepare_dataframe(train_df)
-    
-    # Create folds
-    gkf = GroupKFold(n_splits=5)
-    train_df['fold'] = -1
-    for fold, (train_idx, val_idx) in enumerate(gkf.split(train_df, groups=train_df.patient_id)):
-        train_df.loc[val_idx, 'fold'] = fold
-    
-    # Training for one fold
-    fold = 0
-    print(f"Training fold {fold}")
-    
-    # Create datasets and dataloaders
-    train_transform, valid_transform = get_transforms(Config.IMAGE_SIZE)
-    
-    train_dataset = MammographyDataset(
-        train_df[train_df.fold != fold],
-        Config.TRAIN_DIR,
-        transform=train_transform
-    )
-    
-    valid_dataset = MammographyDataset(
-        train_df[train_df.fold == fold],
-        Config.TRAIN_DIR,
-        transform=valid_transform
-    )
-    
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=Config.BATCH_SIZE,
-        shuffle=True,
-        num_workers=Config.NUM_WORKERS,
-        pin_memory=True,
-        drop_last=True
-    )
-    
-    valid_loader = DataLoader(
-        valid_dataset,
-        batch_size=Config.BATCH_SIZE,
-        shuffle=False,
-        num_workers=Config.NUM_WORKERS,
-        pin_memory=True
-    )
-    
-    # Create model
-    print("Creating model...")
-    model = MammographyModel(
-        Config.MODEL_NAME,
-        pretrained=Config.PRETRAINED,
-        num_classes=Config.NUM_CLASSES
-    ).to(Config.DEVICE)
-    
-    # Define loss and optimizer
-    criterion = nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=Config.LEARNING_RATE)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer,
-        T_max=len(train_loader) * Config.EPOCHS // Config.GRADIENT_ACCUMULATION_STEPS
-    )
-    
-    # Initialize AMP scaler
-    scaler = amp.GradScaler() if Config.USE_AMP else None
-    
-    # Training loop
-    best_auc = 0
-    
-    print("Starting training...")
-    for epoch in range(Config.EPOCHS):
-        print(f'Epoch {epoch + 1}/{Config.EPOCHS}')
+    try:
+        # Read metadata
+        train_df = pd.read_csv("/kaggle/input/rsna-breast-cancer-detection/train.csv")
+        print(f"Total images to process: {len(train_df)}")
         
-        train_loss = train_one_epoch(
-            model, train_loader, optimizer, criterion, 
-            Config.DEVICE, scheduler, scaler
+        # Create output directory
+        output_dir = Path("/kaggle/working/processed_images")
+        
+        # Process images
+        print("\nProcessing images...")
+        processed_count, failed_count = preprocessor.process_and_save(
+            train_df,
+            output_dir,
+            num_samples=5  # Change this number or set to None for all images
         )
         
-        val_loss, predictions, targets, auc = validate(
-            model, valid_loader, criterion, Config.DEVICE
-        )
+        print(f"\nProcessing completed:")
+        print(f"Successfully processed: {processed_count}")
+        print(f"Failed: {failed_count}")
         
-        print(f'Train Loss: {train_loss:.4f}')
-        print(f'Valid Loss: {val_loss:.4f}')
-        print(f'Valid AUC: {auc:.4f}')
+        # Save processing summary
+        summary = {
+            'total_images': len(train_df),
+            'processed': processed_count,
+            'failed': failed_count,
+            'success_rate': processed_count / (processed_count + failed_count) * 100 if (processed_count + failed_count) > 0 else 0
+        }
         
-        # Save model if validation AUC improves
-        if auc > best_auc:
-            best_auc = auc
-            model_path = os.path.join(Config.OUTPUT_DIR, f'model_fold_{fold}_auc_{auc:.4f}.pth')
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'scheduler_state_dict': scheduler.state_dict() if scheduler else None,
-                'scaler_state_dict': scaler.state_dict() if scaler else None,
-                'auc': best_auc,
-            }, model_path)
-            print(f'Model saved to {model_path}')
+        pd.DataFrame([summary]).to_csv(output_dir / 'processing_summary.csv', index=False)
+        print("\nProcessing summary saved.")
+        
+        print("\nOutput directory structure:")
+        print(f"{output_dir}/")
+        print("├── CC/")
+        print("│   ├── L/")
+        print("│   └── R/")
+        print("├── MLO/")
+        print("│   ├── L/")
+        print("│   └── R/")
+        print("└── processing_summary.csv")
+        
+    except Exception as e:
+        print(f"\nAn error occurred: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
 
 if __name__ == "__main__":
     main()
