@@ -59,6 +59,7 @@ class CFG:
     valid_batch_size = 32
     num_workers = 0
     num_folds = 5
+    patience = 3  # Added for early stopping
     # Add safety flags
     persistent_workers = False
     pin_memory = True
@@ -425,199 +426,323 @@ def get_dataloader(dataset, batch_size, shuffle=True, is_train=True):
     )
 
 def train_model():
-    """Main training loop with stratified fold splitting"""
+    """Main training loop with enhanced error handling and logging"""
+    # Set seeds for reproducibility
     torch.manual_seed(CFG.seed)
     np.random.seed(CFG.seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
     
-    # Read and prepare data
-    train_df = pd.read_csv(CFG.base_path / 'train.csv')
-    if CFG.debug:
-        train_df = train_df.head(100)
+    # Initialize training metrics
+    fold_scores = []
+    best_scores = []
     
-    # Print class distribution
-    print("\nClass distribution in training data:")
-    print(train_df['cancer'].value_counts(normalize=True))
-    
-    # Create stratified folds
-    skf = StratifiedGroupKFold(n_splits=CFG.num_folds, shuffle=True, random_state=CFG.seed)
-    train_df['fold'] = -1  # Initialize fold column
-    
-    # Assign folds
-    for fold, (train_idx, val_idx) in enumerate(skf.split(train_df, train_df['cancer'], groups=train_df['patient_id'])):
-        train_df.loc[val_idx, 'fold'] = fold
-    
-    # Training loop
-    for fold in range(CFG.num_folds):
-        print(f'\nTraining fold {fold + 1}/{CFG.num_folds}')
+    try:
+        # Read and prepare data
+        train_df = pd.read_csv(CFG.base_path / 'train.csv')
+        if CFG.debug:
+            train_df = train_df.head(100)
+            print("Debug mode: Using only 100 training samples")
         
-        # Clear GPU memory before each fold
-        torch.cuda.empty_cache()
-        gc.collect()
+        # Print initial class distribution
+        print("\nOverall class distribution:")
+        print(train_df['cancer'].value_counts(normalize=True))
         
-        # Check class distribution in fold
-        train_fold = train_df[train_df.fold != fold].reset_index(drop=True)
-        valid_fold = train_df[train_df.fold == fold].reset_index(drop=True)
+        # Create stratified folds
+        skf = StratifiedGroupKFold(
+            n_splits=CFG.num_folds, 
+            shuffle=True, 
+            random_state=CFG.seed
+        )
         
-        print("\nTrain fold class distribution:")
-        print(train_fold['cancer'].value_counts(normalize=True))
-        print("\nValid fold class distribution:")
-        print(valid_fold['cancer'].value_counts(normalize=True))
+        # Create folds while maintaining patient groups
+        train_df['fold'] = -1
+        for fold, (train_idx, val_idx) in enumerate(
+            skf.split(train_df, train_df['cancer'], groups=train_df['patient_id'])
+        ):
+            train_df.loc[val_idx, 'fold'] = fold
         
-        try:
-            # Prepare datasets
-            train_dataset = RSNADataset(train_fold, transform=A.Compose(CFG.train_aug_list))
-            valid_dataset = RSNADataset(valid_fold, transform=A.Compose(CFG.valid_aug_list))
+        # Save fold assignments for reproducibility
+        train_df.to_csv(CFG.processed_dir / 'fold_assignments.csv', index=False)
+        
+        # Training loop for each fold
+        for fold in range(CFG.num_folds):
+            print(f'\n{"="*20} Fold {fold + 1}/{CFG.num_folds} {"="*20}')
             
-            # Create dataloaders with safe settings
-            train_loader = get_dataloader(train_dataset, CFG.train_batch_size, shuffle=True)
-            valid_loader = get_dataloader(valid_dataset, CFG.valid_batch_size, shuffle=False, is_train=False)
-            
-            # Initialize model and training
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-            model = RSNAModel().to(device)
-            
-            # Calculate class weights for imbalanced dataset
-            pos_weight = len(train_fold[train_fold['cancer'] == 0]) / max(1, len(train_fold[train_fold['cancer'] == 1]))
-            criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([pos_weight]).to(device))
-            
-            optimizer = getattr(torch.optim, CFG.optimizer)(
-                model.parameters(),
-                lr=CFG.learning_rate,
-                weight_decay=CFG.weight_decay
-            )
-            
-            scheduler = getattr(torch.optim.lr_scheduler, CFG.scheduler)(
-                optimizer,
-                T_max=CFG.T_max,
-                eta_min=CFG.min_lr
-            )
-            
-            # Training
-            best_score = float('-inf')
-            patience = 3
-            patience_counter = 0
-            
-            for epoch in range(CFG.epochs):
-                print(f'Epoch {epoch + 1}/{CFG.epochs}')
-                
-                try:
-                    train_loss = train_one_epoch(
-                        model, train_loader, criterion,
-                        optimizer, scheduler, device
-                    )
-                    
-                    valid_loss, valid_score = valid_one_epoch(
-                        model, valid_loader, criterion, device
-                    )
-                    
-                    print(f'Train Loss: {train_loss:.4f} Valid Loss: {valid_loss:.4f} Valid Score: {valid_score:.4f}')
-                    
-                    # Save best model
-                    if valid_score > best_score:
-                        best_score = valid_score
-                        torch.save({
-                            'model_state_dict': model.state_dict(),
-                            'optimizer_state_dict': optimizer.state_dict(),
-                            'scheduler_state_dict': scheduler.state_dict(),
-                            'best_score': best_score,
-                            'epoch': epoch,
-                        }, CFG.model_dir / f'fold{fold}_best.pth')
-                        print(f'Best model saved! Score: {best_score:.4f}')
-                        patience_counter = 0
-                    else:
-                        patience_counter += 1
-                        
-                    # Early stopping
-                    if patience_counter >= patience:
-                        print(f'Early stopping triggered after {epoch + 1} epochs')
-                        break
-                        
-                except Exception as e:
-                    print(f"Error in epoch {epoch + 1}: {str(e)}")
-                    break
-            
-        except Exception as e:
-            print(f"Error in fold {fold + 1}: {str(e)}")
-            continue
-            
-        finally:
-            # Cleanup
-            try:
-                del model, train_loader, valid_loader, train_dataset, valid_dataset
-                gc.collect()
+            # Clear memory before each fold
+            if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            except:
-                pass
+            gc.collect()
+            
+            try:
+                # Prepare fold data
+                train_fold = train_df[train_df.fold != fold].reset_index(drop=True)
+                valid_fold = train_df[train_df.fold == fold].reset_index(drop=True)
+                
+                # Print fold-specific class distributions
+                print("\nTrain fold class distribution:")
+                print(train_fold['cancer'].value_counts(normalize=True))
+                print("\nValid fold class distribution:")
+                print(valid_fold['cancer'].value_counts(normalize=True))
+                
+                # Create datasets
+                train_dataset = RSNADataset(
+                    train_fold, 
+                    transform=A.Compose(CFG.train_aug_list)
+                )
+                valid_dataset = RSNADataset(
+                    valid_fold, 
+                    transform=A.Compose(CFG.valid_aug_list)
+                )
+                
+                # Create dataloaders with safe settings
+                train_loader = get_dataloader(
+                    train_dataset, 
+                    CFG.train_batch_size, 
+                    shuffle=True
+                )
+                valid_loader = get_dataloader(
+                    valid_dataset, 
+                    CFG.valid_batch_size, 
+                    shuffle=False, 
+                    is_train=False
+                )
+                
+                # Initialize model and move to device
+                device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+                model = RSNAModel().to(device)
+                
+                # Calculate class weights for imbalanced dataset
+                pos_weight = (
+                    len(train_fold[train_fold['cancer'] == 0]) / 
+                    max(1, len(train_fold[train_fold['cancer'] == 1]))
+                )
+                criterion = nn.BCEWithLogitsLoss(
+                    pos_weight=torch.tensor([pos_weight]).to(device)
+                )
+                
+                # Initialize optimizer
+                optimizer = getattr(torch.optim, CFG.optimizer)(
+                    model.parameters(),
+                    lr=CFG.learning_rate,
+                    weight_decay=CFG.weight_decay
+                )
+                
+                # Initialize scheduler
+                scheduler = getattr(torch.optim.lr_scheduler, CFG.scheduler)(
+                    optimizer,
+                    T_max=CFG.T_max,
+                    eta_min=CFG.min_lr
+                )
+                
+                # Training loop
+                best_score = float('-inf')
+                best_loss = float('inf')
+                patience_counter = 0
+                fold_history = {
+                    'train_loss': [],
+                    'valid_loss': [],
+                    'valid_score': []
+                }
+                
+                for epoch in range(CFG.epochs):
+                    print(f'\nEpoch {epoch + 1}/{CFG.epochs}')
+                    
+                    try:
+                        # Training phase
+                        train_loss = train_one_epoch(
+                            model, train_loader, criterion,
+                            optimizer, scheduler, device
+                        )
+                        
+                        # Validation phase
+                        valid_loss, valid_score = valid_one_epoch(
+                            model, valid_loader, criterion, device
+                        )
+                        
+                        # Update history
+                        fold_history['train_loss'].append(train_loss)
+                        fold_history['valid_loss'].append(valid_loss)
+                        fold_history['valid_score'].append(valid_score)
+                        
+                        # Print metrics
+                        print(
+                            f'Train Loss: {train_loss:.4f} '
+                            f'Valid Loss: {valid_loss:.4f} '
+                            f'Valid Score: {valid_score:.4f}'
+                        )
+                        
+                        # Save best model
+                        if valid_score > best_score:
+                            best_score = valid_score
+                            best_loss = valid_loss
+                            torch.save(
+                                {
+                                    'epoch': epoch,
+                                    'model_state_dict': model.state_dict(),
+                                    'optimizer_state_dict': optimizer.state_dict(),
+                                    'scheduler_state_dict': scheduler.state_dict(),
+                                    'best_score': best_score,
+                                    'best_loss': best_loss,
+                                    'fold_history': fold_history
+                                },
+                                CFG.model_dir / f'fold{fold}_best.pth'
+                            )
+                            print(f'Best model saved! Score: {best_score:.4f}')
+                            patience_counter = 0
+                        else:
+                            patience_counter += 1
+                            
+                        # Early stopping check
+                        if patience_counter >= CFG.patience:
+                            print(
+                                f'Early stopping triggered after '
+                                f'{epoch + 1} epochs'
+                            )
+                            break
+                            
+                    except Exception as e:
+                        print(f"Error in epoch {epoch + 1}: {str(e)}")
+                        print(traceback.format_exc())
+                        break
+                
+                # Store fold results
+                fold_scores.append(best_score)
+                best_scores.append({
+                    'fold': fold,
+                    'score': best_score,
+                    'loss': best_loss
+                })
+                
+            except Exception as e:
+                print(f"Error in fold {fold + 1}: {str(e)}")
+                print(traceback.format_exc())
+                continue
+                
+            finally:
+                # Cleanup
+                try:
+                    del model, train_loader, valid_loader
+                    del train_dataset, valid_dataset
+                    del optimizer, scheduler
+                    gc.collect()
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                except Exception as e:
+                    print(f"Error in cleanup: {str(e)}")
+        
+        # Print final results
+        print("\nTraining completed!")
+        print("\nBest scores per fold:")
+        for score_dict in best_scores:
+            print(
+                f"Fold {score_dict['fold'] + 1}: "
+                f"Score = {score_dict['score']:.4f}, "
+                f"Loss = {score_dict['loss']:.4f}"
+            )
+        
+        print(f"\nMean CV score: {np.mean(fold_scores):.4f}")
+        print(f"Std CV score: {np.std(fold_scores):.4f}")
+        
+        return best_scores
+        
+    except Exception as e:
+        print(f"Fatal error in training: {str(e)}")
+        print(traceback.format_exc())
+        return None
 
-        print(f"Completed fold {fold + 1} with best score: {best_score:.4f}")
-
-    
 def inference():
     """Performs inference using trained models"""
     print("\nStarting inference...")
     
-    # Read test data
-    test_df = pd.read_csv(CFG.base_path / 'test.csv')
-    if CFG.debug:
-        test_df = test_df.head(100)
-        print("Debug mode: Using only 100 test samples")
-    
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    predictions = []
-    
-    # Create test dataset
-    test_dataset = RSNADataset(
-        test_df,
-        transform=A.Compose(CFG.valid_aug_list),
-        is_train=False
-    )
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=CFG.valid_batch_size,
-        shuffle=False,
-        num_workers=CFG.num_workers,
-        pin_memory=True
-    )
-    
-    # Inference with all folds
-    for fold in range(CFG.num_folds):
-        print(f'Inferencing fold {fold + 1}/{CFG.num_folds}')
-        model = RSNAModel().to(device)
+    try:
+        # Read test data
+        test_df = pd.read_csv(CFG.base_path / 'test.csv')
+        if CFG.debug:
+            test_df = test_df.head(100)
+            print("Debug mode: Using only 100 test samples")
         
-        try:
-            model.load_state_dict(torch.load(CFG.model_dir / f'fold{fold}_best.pth'))
-            model.eval()
-            
-            fold_preds = []
-            with torch.no_grad():
-                for images in tqdm(test_loader, desc=f'Fold {fold + 1}'):
-                    images = images.to(device)
-                    y_preds = model(images).squeeze(1)
-                    fold_preds.append(y_preds.sigmoid().cpu().numpy())
-            
-            fold_preds = np.concatenate(fold_preds)
-            predictions.append(fold_preds)
-            
-        except Exception as e:
-            print(f"Error in fold {fold} inference: {str(e)}")
-            continue
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        predictions = []
         
-        finally:
-            del model
-            gc.collect()
-            torch.cuda.empty_cache()
-    
-    # Average predictions from all folds
-    predictions = np.mean(predictions, axis=0)
-    
-    # Create submission
-    submission = pd.DataFrame({
-        'prediction_id': test_df['prediction_id'],
-        'cancer': predictions
-    })
-    submission.to_csv('submission.csv', index=False)
-    print('Submission saved!')
-    return submission
+        # Create test dataset
+        test_dataset = RSNADataset(
+            test_df,
+            transform=A.Compose(CFG.valid_aug_list),
+            is_train=False
+        )
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=CFG.valid_batch_size,
+            shuffle=False,
+            num_workers=0,  # Set to 0 to avoid multiprocessing issues
+            pin_memory=True
+        )
+        
+        # Inference with all folds
+        for fold in range(CFG.num_folds):
+            print(f'Inferencing fold {fold + 1}/{CFG.num_folds}')
+            model = RSNAModel().to(device)
+            
+            try:
+                # Load the saved model state
+                checkpoint = torch.load(
+                    CFG.model_dir / f'fold{fold}_best.pth',
+                    map_location=device
+                )
+                model.load_state_dict(checkpoint['model_state_dict'])
+                model.eval()
+                
+                fold_preds = []
+                with torch.no_grad():
+                    for images in tqdm(test_loader, desc=f'Fold {fold + 1}'):
+                        images = images.to(device)
+                        with autocast():  # Add mixed precision inference
+                            y_preds = model(images).squeeze(1)
+                        fold_preds.append(y_preds.sigmoid().cpu().numpy())
+                
+                fold_preds = np.concatenate(fold_preds)
+                predictions.append(fold_preds)
+                print(f"Fold {fold + 1} inference completed")
+                
+            except Exception as e:
+                print(f"Error in fold {fold + 1} inference: {str(e)}")
+                print(traceback.format_exc())
+                continue
+            
+            finally:
+                # Cleanup
+                try:
+                    del model
+                    gc.collect()
+                    torch.cuda.empty_cache()
+                except Exception as e:
+                    print(f"Error in cleanup: {str(e)}")
+        
+        if not predictions:
+            raise ValueError("No valid predictions from any fold")
+            
+        # Average predictions from all folds
+        predictions = np.mean(predictions, axis=0)
+        
+        # Create submission
+        submission = pd.DataFrame({
+            'prediction_id': test_df['prediction_id'],
+            'cancer': predictions
+        })
+        
+        # Save submission with timestamp
+        timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+        submission_path = f'submission_{timestamp}.csv'
+        submission.to_csv(submission_path, index=False)
+        print(f'Submission saved to {submission_path}!')
+        
+        return submission
+        
+    except Exception as e:
+        print(f"Fatal error in inference: {str(e)}")
+        print(traceback.format_exc())
+        return None
 
 def process_test_data():
     """Processes test data for inference"""
