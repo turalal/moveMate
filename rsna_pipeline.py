@@ -93,8 +93,7 @@ class CFG:
         A.Normalize(),
         ToTensorV2(),
     ]
-    
-            
+         
 class RSNAPreprocessor:
     """Handles preprocessing of DICOM images"""
     def __init__(self, **kwargs):
@@ -116,21 +115,20 @@ class RSNAPreprocessor:
             if not dicom_path.exists():
                 print(f"File not found: {dicom_path}")
                 return None
-                
-            # Simple DICOM reading without GDCM check
-            dicom = pydicom.dcmread(str(dicom_path), force=True)
             
+            # Try multiple methods to read DICOM
             try:
-                # Try to access pixel_array
+                dicom = pydicom.dcmread(str(dicom_path), force=True)
+                if hasattr(dicom, 'file_meta') and hasattr(dicom.file_meta, 'TransferSyntaxUID'):
+                    if dicom.file_meta.TransferSyntaxUID.is_compressed:
+                        dicom.decompress()
                 img = dicom.pixel_array
             except Exception as e:
-                print(f"Error reading pixel array: {str(e)}")
+                print(f"Error reading DICOM with primary method: {str(e)}")
                 return None
                 
             # Convert to float and normalize
             img = img.astype(float)
-            
-            # Normalize
             if img.max() != img.min():
                 img = (img - img.min()) / (img.max() - img.min())
             img = (img * 255).astype(np.uint8)
@@ -289,7 +287,7 @@ class RSNADataset(Dataset):
         img_path = CFG.processed_dir / row['view'] / row['laterality'] / f"{row['patient_id']}_{row['image_id']}.png"
         
         if not img_path.exists():
-            # Create a blank image if file doesn't exist
+            # Create blank image using tuple target_size
             img = np.zeros((CFG.target_size[0], CFG.target_size[1], 3), dtype=np.uint8)
             print(f"Warning: Image not found: {img_path}")
         else:
@@ -309,6 +307,7 @@ class RSNADataset(Dataset):
         else:
             return img
 
+
 class RSNAModel(nn.Module):
     """Model architecture"""
     def __init__(self):
@@ -316,12 +315,12 @@ class RSNAModel(nn.Module):
         self.model = timm.create_model(
             CFG.model_name, 
             pretrained=CFG.pretrained, 
-            num_classes=CFG.target_size
+            num_classes=CFG.num_classes  # Changed from target_size
         )
         
     def forward(self, x):
         return self.model(x)
-
+    
 class AverageMeter:
     """Computes and stores the average and current value"""
     def __init__(self):
