@@ -133,24 +133,42 @@ class RSNAPreprocessor:
         pydicom.config.image_handlers = [gdcm_handler, pillow_handler]
 
     def read_dicom(self, patient_id, image_id, is_train=True):
+        """Enhanced DICOM reading with better error handling and performance"""
         try:
             images_path = self.train_images_path if is_train else self.test_images_path
             dicom_path = images_path / str(patient_id) / f"{image_id}.dcm"
             
             if not dicom_path.exists():
-                print(f"File not found: {dicom_path}")
+                error_msg = f"File not found: {dicom_path}"
+                self.error_log.append({
+                    'patient_id': patient_id,
+                    'image_id': image_id,
+                    'error': error_msg
+                })
+                print(error_msg)
                 return None
             
-            # Try multiple methods to read DICOM
             try:
+                # Use primary reading method
                 dicom = pydicom.dcmread(str(dicom_path), force=True)
                 if hasattr(dicom, 'file_meta') and hasattr(dicom.file_meta, 'TransferSyntaxUID'):
                     if dicom.file_meta.TransferSyntaxUID.is_compressed:
                         dicom.decompress()
                 img = dicom.pixel_array
+                
             except Exception as e:
-                print(f"Error reading DICOM with primary method: {str(e)}")
-                return None
+                # Try alternate reading methods if primary fails
+                dicom = self._try_alternate_reading(dicom_path)
+                if dicom is None:
+                    error_msg = f"Failed to read DICOM with all methods: {str(e)}"
+                    self.error_log.append({
+                        'patient_id': patient_id,
+                        'image_id': image_id,
+                        'error': error_msg
+                    })
+                    print(error_msg)
+                    return None
+                img = dicom.pixel_array
                 
             # Convert to float and normalize
             img = img.astype(float)
@@ -158,9 +176,8 @@ class RSNAPreprocessor:
                 img = (img - img.min()) / (img.max() - img.min())
             img = (img * 255).astype(np.uint8)
             
-            # Apply CLAHE for better contrast
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-            img = clahe.apply(img)
+            # Apply CLAHE for better contrast - use instance variable
+            img = self.clahe.apply(img)
             
             # Resize with padding
             img = self._resize_with_padding(img)
@@ -168,7 +185,13 @@ class RSNAPreprocessor:
             return img
                 
         except Exception as e:
-            print(f"Error processing image {image_id} for patient {patient_id}: {str(e)}")
+            error_msg = f"Error processing image {image_id} for patient {patient_id}: {str(e)}"
+            self.error_log.append({
+                'patient_id': patient_id,
+                'image_id': image_id,
+                'error': error_msg
+            })
+            print(error_msg)
             return None
 
     def _try_alternate_reading(self, dicom_path):
@@ -194,6 +217,7 @@ class RSNAPreprocessor:
                     return None
 
     def _process_dicom_image(self, dicom):
+        """Enhanced DICOM processing with better error handling"""
         try:
             img = dicom.pixel_array.astype(np.float32)
             
@@ -202,9 +226,8 @@ class RSNAPreprocessor:
                 img = (img - img.min()) / (img.max() - img.min())
             img = (img * 255).astype(np.uint8)
             
-            # Apply CLAHE
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-            img = clahe.apply(img)
+            # Use instance CLAHE object
+            img = self.clahe.apply(img)
             
             return img
                 
@@ -213,29 +236,40 @@ class RSNAPreprocessor:
             return None
 
     def _resize_with_padding(self, img):
+        """Enhanced resize with better error checking"""
         if img is None:
             return None
             
-        aspect = img.shape[0] / img.shape[1]
-        if aspect > 1:
-            new_height = self.target_size[0]
-            new_width = int(new_height / aspect)
-        else:
-            new_width = self.target_size[1]
-            new_height = int(new_width * aspect)
-        
-        img = cv2.resize(img, (new_width, new_height))
-        
-        # Add padding
-        top_pad = (self.target_size[0] - img.shape[0]) // 2
-        bottom_pad = self.target_size[0] - img.shape[0] - top_pad
-        left_pad = (self.target_size[1] - img.shape[1]) // 2
-        right_pad = self.target_size[1] - img.shape[1] - left_pad
-        
-        return cv2.copyMakeBorder(
-            img, top_pad, bottom_pad, left_pad, right_pad,
-            cv2.BORDER_CONSTANT, value=0
-        )
+        try:
+            aspect = img.shape[0] / img.shape[1]
+            if aspect > 1:
+                new_height = self.target_size[0]
+                new_width = int(new_height / aspect)
+            else:
+                new_width = self.target_size[1]
+                new_height = int(new_width * aspect)
+            
+            # Use INTER_AREA for downscaling, INTER_LINEAR for upscaling
+            if img.shape[0] > new_height or img.shape[1] > new_width:
+                interpolation = cv2.INTER_AREA
+            else:
+                interpolation = cv2.INTER_LINEAR
+                
+            img = cv2.resize(img, (new_width, new_height), interpolation=interpolation)
+            
+            # Add padding
+            top_pad = (self.target_size[0] - img.shape[0]) // 2
+            bottom_pad = self.target_size[0] - img.shape[0] - top_pad
+            left_pad = (self.target_size[1] - img.shape[1]) // 2
+            right_pad = self.target_size[1] - img.shape[1] - left_pad
+            
+            return cv2.copyMakeBorder(
+                img, top_pad, bottom_pad, left_pad, right_pad,
+                cv2.BORDER_CONSTANT, value=0
+            )
+        except Exception as e:
+            print(f"Error in resize_with_padding: {str(e)}")
+            return None
 
     def save_image(self, img, output_path):
         """Save image with error checking"""
@@ -252,79 +286,247 @@ class RSNAPreprocessor:
             print(f"Error saving image to {output_path}: {str(e)}")
             return False
      
-    def process_and_save(self, metadata_df, output_dir, num_samples=None):
-        if num_samples:
-            metadata_df = metadata_df.head(num_samples)
-        
-        output_dir = Path(output_dir)
-        self._create_directory_structure(output_dir)
-        
-        processed_count = 0
-        failed_count = 0
-        
-        # Process in smaller batches to manage memory
-        batch_size = 50
-        num_batches = (len(metadata_df) + batch_size - 1) // batch_size
-        
-        for batch_idx in range(num_batches):
-            start_idx = batch_idx * batch_size
-            end_idx = min((batch_idx + 1) * batch_size, len(metadata_df))
-            batch_df = metadata_df.iloc[start_idx:end_idx]
+    def _validate_dicom(self, dicom, patient_id, image_id):
+        """Validates DICOM file and logs metadata"""
+        try:
+            # Required DICOM attributes for validation
+            required_attributes = [
+                'PatientID', 
+                'StudyInstanceUID', 
+                'SeriesInstanceUID',
+                'Rows', 
+                'Columns'
+            ]
             
-            # Process batch
-            for idx, row in tqdm(batch_df.iterrows(), 
-                               total=len(batch_df),
-                               desc=f'Processing batch {batch_idx + 1}/{num_batches}'):
-                try:
-                    img = self.read_dicom(
-                        patient_id=str(row['patient_id']),
-                        image_id=str(row['image_id'])
-                    )
-                    
-                    if img is not None and img.size > 0:
-                        output_path = (output_dir / row['view'] / row['laterality'] / 
-                                     f"{row['patient_id']}_{row['image_id']}")
-                        success = self.save_image(img, output_path)
+            # Check for required attributes
+            missing_attributes = [
+                attr for attr in required_attributes 
+                if not hasattr(dicom, attr)
+            ]
+            
+            if missing_attributes:
+                self.error_log.append({
+                    'patient_id': patient_id,
+                    'image_id': image_id,
+                    'error': f'Missing required DICOM attributes: {missing_attributes}',
+                    'type': 'validation_error'
+                })
+                return False
+                
+            # Validate image dimensions
+            if dicom.Rows == 0 or dicom.Columns == 0:
+                self.error_log.append({
+                    'patient_id': patient_id,
+                    'image_id': image_id,
+                    'error': f'Invalid image dimensions: {dicom.Rows}x{dicom.Columns}',
+                    'type': 'dimension_error'
+                })
+                return False
+                
+            # Log metadata for analysis
+            metadata = {
+                'patient_id': patient_id,
+                'image_id': image_id,
+                'rows': dicom.Rows,
+                'columns': dicom.Columns,
+                'bits_allocated': getattr(dicom, 'BitsAllocated', None),
+                'bits_stored': getattr(dicom, 'BitsStored', None),
+                'pixel_representation': getattr(dicom, 'PixelRepresentation', None),
+                'window_center': getattr(dicom, 'WindowCenter', None),
+                'window_width': getattr(dicom, 'WindowWidth', None),
+                'modality': getattr(dicom, 'Modality', None)
+            }
+            
+            # Save metadata
+            if not hasattr(self, 'metadata_log'):
+                self.metadata_log = []
+            self.metadata_log.append(metadata)
+            
+            return True
+            
+        except Exception as e:
+            self.error_log.append({
+                'patient_id': patient_id,
+                'image_id': image_id,
+                'error': str(e),
+                'type': 'validation_exception'
+            })
+            return False
+
+    def process_and_save(self, metadata_df, output_dir, num_samples=None):
+        """Enhanced data processing and saving with detailed logging"""
+        try:
+            if num_samples:
+                metadata_df = metadata_df.head(num_samples)
+            
+            output_dir = Path(output_dir)
+            self._create_directory_structure(output_dir)
+            
+            # Initialize counters and logs
+            processed_count = 0
+            failed_count = 0
+            batch_stats = []
+            
+            # Process in smaller batches to manage memory
+            batch_size = 50
+            num_batches = (len(metadata_df) + batch_size - 1) // batch_size
+            
+            for batch_idx in range(num_batches):
+                start_idx = batch_idx * batch_size
+                end_idx = min((batch_idx + 1) * batch_size, len(metadata_df))
+                batch_df = metadata_df.iloc[start_idx:end_idx]
+                
+                batch_processed = 0
+                batch_failed = 0
+                batch_start_time = pd.Timestamp.now()
+                
+                # Process batch
+                for idx, row in tqdm(batch_df.iterrows(), 
+                                total=len(batch_df),
+                                desc=f'Processing batch {batch_idx + 1}/{num_batches}'):
+                    try:
+                        # Read DICOM
+                        img = self.read_dicom(
+                            patient_id=str(row['patient_id']),
+                            image_id=str(row['image_id'])
+                        )
                         
-                        if success:
-                            thumbnail = cv2.resize(img, (512, 512))
-                            thumbnail_path = output_path.with_name(f"{output_path.stem}_thumb")
-                            self.save_image(thumbnail, thumbnail_path)
-                            processed_count += 1
+                        if img is not None and img.size > 0:
+                            # Prepare output paths
+                            output_path = (output_dir / row['view'] / row['laterality'] / 
+                                        f"{row['patient_id']}_{row['image_id']}")
+                            
+                            # Save main image
+                            success = self.save_image(img, output_path)
+                            
+                            if success:
+                                # Create and save thumbnail
+                                try:
+                                    thumbnail = cv2.resize(img, (512, 512))
+                                    thumbnail_path = output_path.with_name(f"{output_path.stem}_thumb")
+                                    thumb_success = self.save_image(thumbnail, thumbnail_path)
+                                    
+                                    if thumb_success:
+                                        processed_count += 1
+                                        batch_processed += 1
+                                    else:
+                                        failed_count += 1
+                                        batch_failed += 1
+                                        self.error_log.append({
+                                            'patient_id': row['patient_id'],
+                                            'image_id': row['image_id'],
+                                            'error': 'Failed to save thumbnail',
+                                            'batch': batch_idx + 1,
+                                            'timestamp': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+                                        })
+                                except Exception as thumb_error:
+                                    failed_count += 1
+                                    batch_failed += 1
+                                    self.error_log.append({
+                                        'patient_id': row['patient_id'],
+                                        'image_id': row['image_id'],
+                                        'error': f'Thumbnail error: {str(thumb_error)}',
+                                        'batch': batch_idx + 1,
+                                        'timestamp': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+                                    })
+                            else:
+                                failed_count += 1
+                                batch_failed += 1
+                                self.error_log.append({
+                                    'patient_id': row['patient_id'],
+                                    'image_id': row['image_id'],
+                                    'error': 'Failed to save main image',
+                                    'batch': batch_idx + 1,
+                                    'timestamp': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+                                })
                         else:
                             failed_count += 1
+                            batch_failed += 1
                             self.error_log.append({
                                 'patient_id': row['patient_id'],
                                 'image_id': row['image_id'],
-                                'error': 'Failed to save image'
+                                'error': 'Invalid image data',
+                                'batch': batch_idx + 1,
+                                'timestamp': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
                             })
-                    else:
+                            
+                    except Exception as e:
                         failed_count += 1
+                        batch_failed += 1
                         self.error_log.append({
                             'patient_id': row['patient_id'],
                             'image_id': row['image_id'],
-                            'error': 'Invalid image data'
+                            'error': str(e),
+                            'batch': batch_idx + 1,
+                            'timestamp': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
                         })
-                        
-                except Exception as e:
-                    failed_count += 1
-                    self.error_log.append({
-                        'patient_id': row['patient_id'],
-                        'image_id': row['image_id'],
-                        'error': str(e)
-                    })
-                    print(f"Error processing row {idx}: {str(e)}")
+                        print(f"Error processing row {idx}: {str(e)}")
+                
+                # Record batch statistics
+                batch_end_time = pd.Timestamp.now()
+                batch_duration = (batch_end_time - batch_start_time).total_seconds()
+                batch_stats.append({
+                    'batch': batch_idx + 1,
+                    'processed': batch_processed,
+                    'failed': batch_failed,
+                    'duration': batch_duration,
+                    'start_time': batch_start_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'end_time': batch_end_time.strftime('%Y-%m-%d %H:%M:%S')
+                })
+                
+                # Clear memory after each batch
+                gc.collect()
             
-            # Clear memory after each batch
-            gc.collect()
-        
-        # Save error log
-        if self.error_log:
-            error_df = pd.DataFrame(self.error_log)
-            error_df.to_csv(output_dir / 'processing_errors.csv', index=False)
-            print(f"\nError log saved with {len(self.error_log)} entries")
-        
-        return processed_count, failed_count
+            # Save logs and statistics
+            try:
+                # Save error log with additional details
+                if self.error_log:
+                    error_df = pd.DataFrame(self.error_log)
+                    error_summary = error_df.groupby('error')['patient_id'].count()
+                    
+                    # Save detailed error log
+                    error_df.to_csv(output_dir / 'processing_errors.csv', index=False)
+                    
+                    # Save error summary
+                    with open(output_dir / 'error_summary.txt', 'w') as f:
+                        f.write("Error Summary:\n")
+                        f.write(str(error_summary))
+                    
+                    print(f"\nError log saved with {len(self.error_log)} entries")
+                    print("\nError Summary:")
+                    print(error_summary)
+                
+                # Save batch statistics
+                if batch_stats:
+                    stats_df = pd.DataFrame(batch_stats)
+                    stats_df.to_csv(output_dir / 'batch_statistics.csv', index=False)
+                    
+                    # Calculate and save processing summary
+                    total_duration = sum(stat['duration'] for stat in batch_stats)
+                    avg_time_per_image = total_duration / (processed_count + failed_count)
+                    
+                    with open(output_dir / 'processing_summary.txt', 'w') as f:
+                        f.write(f"Processing Summary:\n")
+                        f.write(f"Total Images Processed: {processed_count}\n")
+                        f.write(f"Total Images Failed: {failed_count}\n")
+                        f.write(f"Total Processing Time: {total_duration:.2f} seconds\n")
+                        f.write(f"Average Time per Image: {avg_time_per_image:.2f} seconds\n")
+                        f.write(f"Success Rate: {(processed_count / (processed_count + failed_count) * 100):.2f}%\n")
+                
+                # Save DICOM metadata if collected
+                if hasattr(self, 'metadata_log') and self.metadata_log:
+                    metadata_df = pd.DataFrame(self.metadata_log)
+                    metadata_df.to_csv(output_dir / 'dicom_metadata.csv', index=False)
+                    print(f"\nDICOM metadata saved for {len(self.metadata_log)} files")
+                    
+            except Exception as log_error:
+                print(f"Error saving logs: {str(log_error)}")
+            
+            return processed_count, failed_count
+            
+        except Exception as e:
+            print(f"Fatal error in process_and_save: {str(e)}")
+            return 0, 0
 
     def _create_directory_structure(self, output_dir):
         output_dir.mkdir(exist_ok=True)
