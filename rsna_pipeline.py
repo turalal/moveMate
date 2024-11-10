@@ -55,10 +55,13 @@ class CFG:
     # Training parameters
     seed = 42
     epochs = 2 if debug else 10
-    train_batch_size = 16
+    train_batch_size = 8
     valid_batch_size = 32
-    num_workers = 4
+    num_workers = 0
     num_folds = 5
+    # Add safety flags
+    persistent_workers = False
+    pin_memory = True
     
     # Model
     model_name = 'efficientnet_b3'
@@ -417,7 +420,8 @@ def get_dataloader(dataset, batch_size, shuffle=True, is_train=True):
         shuffle=shuffle,
         num_workers=0,  # Set to 0 to avoid multiprocessing issues
         pin_memory=True,
-        drop_last=is_train
+        drop_last=is_train,
+        persistent_workers=False,  # Disable persistent workers
     )
 
 def train_model():
