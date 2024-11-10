@@ -683,7 +683,8 @@ class RSNAModel(nn.Module):
         layers_info = []
         for name, module in self.named_modules():
             if len(list(module.children())) == 0:  # Leaf module
-                num_params = sum(p.numel() for p in module.parameters(if_exists=True))
+                # num_params = sum(p.numel() for p in module.parameters(if_exists=True))
+                num_params = sum(p.numel() for p in module.parameters())
                 layers_info.append({
                     'name': name,
                     'type': module.__class__.__name__,
