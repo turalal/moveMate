@@ -399,9 +399,48 @@ def valid_one_epoch(model, valid_loader, criterion, device):
     
     return losses.avg, score
 
+def valid_one_epoch(model, valid_loader, criterion, device):
+    """Validates the model for one epoch with safe metric calculation"""
+    model.eval()
+    losses = AverageMeter()
+    preds = []
+    targets = []
+    
+    pbar = tqdm(valid_loader, desc='Validation')
+    
+    with torch.no_grad():
+        for images, labels in pbar:
+            images = images.to(device)
+            labels = labels.to(device)
+            
+            y_preds = model(images).squeeze(1)
+            loss = criterion(y_preds, labels)
+            
+            losses.update(loss.item(), labels.size(0))
+            preds.append(y_preds.sigmoid().cpu().numpy())
+            targets.append(labels.cpu().numpy())
+            
+            pbar.set_postfix({'valid_loss': losses.avg})
+    
+    preds = np.concatenate(preds)
+    targets = np.concatenate(targets)
+    
+    # Safe ROC AUC calculation
+    try:
+        if len(np.unique(targets)) > 1:
+            score = roc_auc_score(targets, preds)
+        else:
+            print("Warning: Only one class present in validation set. Using loss as score.")
+            score = -losses.avg  # Use negative loss as score
+    except Exception as e:
+        print(f"Error calculating score: {str(e)}")
+        score = -losses.avg
+    
+    return losses.avg, score
+
+
 def train_model():
-    """Main training loop"""
-    # Set random seeds
+    """Main training loop with stratified fold splitting"""
     torch.manual_seed(CFG.seed)
     np.random.seed(CFG.seed)
     
@@ -410,19 +449,33 @@ def train_model():
     if CFG.debug:
         train_df = train_df.head(100)
     
-    # Create folds
-    kfold = GroupKFold(n_splits=CFG.num_folds)
-    for fold, (train_idx, val_idx) in enumerate(kfold.split(train_df, groups=train_df['patient_id'])):
+    # Print class distribution
+    print("\nClass distribution in training data:")
+    print(train_df['cancer'].value_counts(normalize=True))
+    
+    # Create stratified folds
+    skf = StratifiedGroupKFold(n_splits=CFG.num_folds, shuffle=True, random_state=CFG.seed)
+    
+    for fold, (train_idx, val_idx) in enumerate(skf.split(train_df, train_df['cancer'], groups=train_df['patient_id'])):
         train_df.loc[val_idx, 'fold'] = fold
     
     # Training loop
     for fold in range(CFG.num_folds):
-        print(f'Training fold {fold + 1}/{CFG.num_folds}')
+        print(f'\nTraining fold {fold + 1}/{CFG.num_folds}')
+        
+        # Check class distribution in fold
+        train_fold = train_df[train_df.fold != fold]
+        valid_fold = train_df[train_df.fold == fold]
+        
+        print("\nTrain fold class distribution:")
+        print(train_fold['cancer'].value_counts(normalize=True))
+        print("\nValid fold class distribution:")
+        print(valid_fold['cancer'].value_counts(normalize=True))
         
         # Prepare data
         train_loader = DataLoader(
             RSNADataset(
-                train_df[train_df.fold != fold],
+                train_fold,
                 transform=A.Compose(CFG.train_aug_list)
             ),
             batch_size=CFG.train_batch_size,
@@ -433,7 +486,7 @@ def train_model():
         
         valid_loader = DataLoader(
             RSNADataset(
-                train_df[train_df.fold == fold],
+                valid_fold,
                 transform=A.Compose(CFG.valid_aug_list)
             ),
             batch_size=CFG.valid_batch_size,
