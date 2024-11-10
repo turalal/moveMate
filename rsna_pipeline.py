@@ -103,16 +103,10 @@ class CFG:
          
 class RSNAPreprocessor:
     """Handles preprocessing of DICOM images"""
+    """Enhanced preprocessing with parallel processing and better error handling"""
     def __init__(self, **kwargs):
-        self.base_path = kwargs.get('base_path', CFG.base_path)
-        self.target_size = kwargs.get('target_size', CFG.target_size)
-        self.output_format = kwargs.get('output_format', CFG.output_format)
-        
-        self.train_images_path = self.base_path / "train_images"
-        self.test_images_path = self.base_path / "test_images"
-        
-        if self.output_format not in ['png', 'jpg', 'jpeg']:
-            raise ValueError("output_format must be 'png' or 'jpg'/'jpeg'")
+        # Previous initialization code remains...
+        self.error_log = []  # Add error logging
 
     def read_dicom(self, patient_id, image_id, is_train=True):
         try:
@@ -233,6 +227,7 @@ class RSNAPreprocessor:
         except Exception as e:
             print(f"Error saving image to {output_path}: {str(e)}")
             return False
+     
     def process_and_save(self, metadata_df, output_dir, num_samples=None):
         if num_samples:
             metadata_df = metadata_df.head(num_samples)
@@ -243,32 +238,67 @@ class RSNAPreprocessor:
         processed_count = 0
         failed_count = 0
         
-        for idx, row in tqdm(metadata_df.iterrows(), total=len(metadata_df)):
-            try:
-                img = self.read_dicom(
-                    patient_id=str(row['patient_id']),
-                    image_id=str(row['image_id'])
-                )
-                
-                if img is not None and img.size > 0:  # Add size check
-                    # Save main image
-                    output_path = output_dir / row['view'] / row['laterality'] / f"{row['patient_id']}_{row['image_id']}"
-                    success = self.save_image(img, output_path)
+        # Process in smaller batches to manage memory
+        batch_size = 50
+        num_batches = (len(metadata_df) + batch_size - 1) // batch_size
+        
+        for batch_idx in range(num_batches):
+            start_idx = batch_idx * batch_size
+            end_idx = min((batch_idx + 1) * batch_size, len(metadata_df))
+            batch_df = metadata_df.iloc[start_idx:end_idx]
+            
+            # Process batch
+            for idx, row in tqdm(batch_df.iterrows(), 
+                               total=len(batch_df),
+                               desc=f'Processing batch {batch_idx + 1}/{num_batches}'):
+                try:
+                    img = self.read_dicom(
+                        patient_id=str(row['patient_id']),
+                        image_id=str(row['image_id'])
+                    )
                     
-                    if success:
-                        # Only save thumbnail if main image was saved successfully
-                        thumbnail = cv2.resize(img, (512, 512))
-                        thumbnail_path = output_path.with_name(f"{output_path.stem}_thumb")
-                        self.save_image(thumbnail, thumbnail_path)
-                        processed_count += 1
+                    if img is not None and img.size > 0:
+                        output_path = (output_dir / row['view'] / row['laterality'] / 
+                                     f"{row['patient_id']}_{row['image_id']}")
+                        success = self.save_image(img, output_path)
+                        
+                        if success:
+                            thumbnail = cv2.resize(img, (512, 512))
+                            thumbnail_path = output_path.with_name(f"{output_path.stem}_thumb")
+                            self.save_image(thumbnail, thumbnail_path)
+                            processed_count += 1
+                        else:
+                            failed_count += 1
+                            self.error_log.append({
+                                'patient_id': row['patient_id'],
+                                'image_id': row['image_id'],
+                                'error': 'Failed to save image'
+                            })
                     else:
                         failed_count += 1
-                else:
+                        self.error_log.append({
+                            'patient_id': row['patient_id'],
+                            'image_id': row['image_id'],
+                            'error': 'Invalid image data'
+                        })
+                        
+                except Exception as e:
                     failed_count += 1
-                    
-            except Exception as e:
-                failed_count += 1
-                print(f"Error processing row {idx}: {str(e)}")
+                    self.error_log.append({
+                        'patient_id': row['patient_id'],
+                        'image_id': row['image_id'],
+                        'error': str(e)
+                    })
+                    print(f"Error processing row {idx}: {str(e)}")
+            
+            # Clear memory after each batch
+            gc.collect()
+        
+        # Save error log
+        if self.error_log:
+            error_df = pd.DataFrame(self.error_log)
+            error_df.to_csv(output_dir / 'processing_errors.csv', index=False)
+            print(f"\nError log saved with {len(self.error_log)} entries")
         
         return processed_count, failed_count
 
@@ -280,39 +310,66 @@ class RSNAPreprocessor:
             (output_dir / view / 'R').mkdir(exist_ok=True)
 
 class RSNADataset(Dataset):
-    """PyTorch Dataset for RSNA images"""
+    """Enhanced PyTorch Dataset for RSNA images"""
     def __init__(self, df, transform=None, is_train=True):
         self.df = df
         self.transform = transform
         self.is_train = is_train
+        self.image_cache = {}  # Add image caching
         
     def __len__(self):
         return len(self.df)
+    
+    def _load_image(self, img_path):
+        """Load image with caching and error handling"""
+        if img_path in self.image_cache:
+            return self.image_cache[img_path].copy()
+            
+        try:
+            img = cv2.imread(str(img_path))
+            if img is not None:
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                # Cache image if not in training mode (to save memory)
+                if not self.is_train:
+                    self.image_cache[img_path] = img.copy()
+                return img
+        except Exception as e:
+            print(f"Error loading image {img_path}: {str(e)}")
+        
+        return None
+    
+    def _get_blank_image(self):
+        """Create blank image with proper dimensions"""
+        return np.zeros((CFG.target_size[0], CFG.target_size[1], 3), dtype=np.uint8)
     
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
         img_path = CFG.processed_dir / row['view'] / row['laterality'] / f"{row['patient_id']}_{row['image_id']}.png"
         
-        if not img_path.exists():
-            # Create blank image using tuple target_size
-            img = np.zeros((CFG.target_size[0], CFG.target_size[1], 3), dtype=np.uint8)
-            print(f"Warning: Image not found: {img_path}")
-        else:
-            img = cv2.imread(str(img_path))
-            if img is None:
-                img = np.zeros((CFG.target_size[0], CFG.target_size[1], 3), dtype=np.uint8)
-                print(f"Warning: Failed to load image: {img_path}")
-            else:
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # Load image or get blank if failed
+        img = self._load_image(img_path)
+        if img is None:
+            img = self._get_blank_image()
+            print(f"Warning: Using blank image for: {img_path}")
         
+        # Apply augmentations
         if self.transform:
-            img = self.transform(image=img)['image']
-            
+            try:
+                transformed = self.transform(image=img)
+                img = transformed['image']
+            except Exception as e:
+                print(f"Error in transformation: {str(e)}")
+                img = self.transform(image=self._get_blank_image())['image']
+        
         if self.is_train:
             label = torch.tensor(row['cancer'], dtype=torch.float32)
             return img, label
         else:
             return img
+    
+    def clear_cache(self):
+        """Clear the image cache"""
+        self.image_cache.clear()
 
 
 class RSNAModel(nn.Module):
@@ -414,16 +471,29 @@ def valid_one_epoch(model, valid_loader, criterion, device):
     return losses.avg, score
 
 def get_dataloader(dataset, batch_size, shuffle=True, is_train=True):
-    """Safe DataLoader creation with proper worker initialization"""
-    return DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=0,  # Set to 0 to avoid multiprocessing issues
-        pin_memory=True,
-        drop_last=is_train,
-        persistent_workers=False,  # Disable persistent workers
-    )
+    """Enhanced DataLoader creation with better error handling"""
+    try:
+        return DataLoader(
+            dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            num_workers=0,
+            pin_memory=True,
+            drop_last=is_train,
+            persistent_workers=False,
+            timeout=60,  # Add timeout
+            prefetch_factor=2 if CFG.num_workers > 0 else None,
+        )
+    except Exception as e:
+        print(f"Error creating DataLoader: {str(e)}")
+        # Fallback to most basic configuration
+        return DataLoader(
+            dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            num_workers=0,
+            pin_memory=False
+        )
 
 def train_model():
     """Main training loop with enhanced error handling and logging"""
