@@ -1,9 +1,12 @@
-# Install required dependencies
-!pip install -U pydicom
-!pip install -U gdcm
-!pip install -U pylibjpeg pylibjpeg-libjpeg>=2.1
-!pip install -U jpg2dcm
+# At the start of your notebook
+!pip uninstall -y gdcm
+!pip uninstall -y pydicom
+!pip uninstall -y pylibjpeg
 
+# Install specific versions
+!pip install gdcm>=3.0.10
+!pip install pydicom>=2.3.0
+!pip install pylibjpeg>=2.0 pylibjpeg-libjpeg>=2.1
 # Set environment variable to disable albumentations update check
 import os
 os.environ['NO_ALBUMENTATIONS_UPDATE'] = '1'
@@ -42,6 +45,7 @@ class CFG:
     model_dir = Path("/kaggle/working/models")
     
     # Preprocessing
+    image_size = 512  # Single value for square images
     target_size = (512, 512)  # Reduced from 2048 for memory efficiency
     output_format = 'png'
     
