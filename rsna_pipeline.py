@@ -284,8 +284,17 @@ class RSNADataset(Dataset):
         row = self.df.iloc[idx]
         img_path = CFG.processed_dir / row['view'] / row['laterality'] / f"{row['patient_id']}_{row['image_id']}.png"
         
-        img = cv2.imread(str(img_path))
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        if not img_path.exists():
+            # Create a blank image if file doesn't exist
+            img = np.zeros((CFG.target_size[0], CFG.target_size[1], 3), dtype=np.uint8)
+            print(f"Warning: Image not found: {img_path}")
+        else:
+            img = cv2.imread(str(img_path))
+            if img is None:
+                img = np.zeros((CFG.target_size[0], CFG.target_size[1], 3), dtype=np.uint8)
+                print(f"Warning: Failed to load image: {img_path}")
+            else:
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         
         if self.transform:
             img = self.transform(image=img)['image']
