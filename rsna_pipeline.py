@@ -33,6 +33,9 @@ import matplotlib.pyplot as plt
 import traceback
 from datetime import datetime
 
+# Logging
+import sys
+import logging
 # Utilities
 from pathlib import Path
 from tqdm.auto import tqdm
@@ -1358,57 +1361,158 @@ def process_test_data():
     )
     print(f"Test data processing completed. Processed: {processed_count}, Failed: {failed_count}")
 
+def save_run_config(cfg, run_dir):
+    """Save training configuration and run info"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    config_path = run_dir / f'run_config_{timestamp}.txt'
+    
+    with open(config_path, 'w') as f:
+        f.write(f"Run started at: {timestamp}\n\n")
+        f.write("Training Configuration:\n")
+        f.write("-" * 50 + "\n")
+        
+        # Save all CFG attributes
+        for attr_name in dir(cfg):
+            if not attr_name.startswith('__'):
+                attr_value = getattr(cfg, attr_name)
+                if isinstance(attr_value, Path):
+                    attr_value = str(attr_value)
+                f.write(f"{attr_name}: {attr_value}\n")
+        
+        # Save system info
+        f.write("\nSystem Information:\n")
+        f.write("-" * 50 + "\n")
+        f.write(f"Python version: {sys.version}\n")
+        f.write(f"PyTorch version: {torch.__version__}\n")
+        f.write(f"CUDA available: {torch.cuda.is_available()}\n")
+        if torch.cuda.is_available():
+            f.write(f"CUDA version: {torch.version.cuda}\n")
+            f.write(f"GPU: {torch.cuda.get_device_name(0)}\n")
+            
+        return config_path
+
 def main():
-    """Main execution function"""
-    print("Starting RSNA Mammography Pipeline...")
+    """Main execution function with enhanced logging and error handling"""
+    start_time = datetime.now()
+    print(f"Starting RSNA Mammography Pipeline at {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     
     try:
+        # Create run directory with timestamp
+        timestamp = start_time.strftime("%Y%m%d_%H%M%S")
+        run_dir = CFG.model_dir / f'run_{timestamp}'
+        run_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Save run configuration
+        config_path = save_run_config(CFG, run_dir)
+        print(f"Run configuration saved to: {config_path}")
+        
         # Create necessary directories
         CFG.processed_dir.mkdir(parents=True, exist_ok=True)
-        CFG.model_dir.mkdir(parents=True, exist_ok=True)
         
-        # Step 1: Process training data
-        print("\nStep 1: Processing training data...")
-        train_df = pd.read_csv(CFG.base_path / 'train.csv')
-        if CFG.debug:
-            train_df = train_df.head(100)
-            print("Debug mode: Using only 100 training samples")
-        
-        preprocessor = RSNAPreprocessor(
-            base_path=CFG.base_path,
-            target_size=CFG.target_size,
-            output_format=CFG.output_format
+        # Initialize log file
+        log_path = run_dir / 'run_log.txt'
+        logging.basicConfig(
+            filename=str(log_path),
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s'
         )
+        logging.info("Pipeline started")
         
-        processed_count, failed_count = preprocessor.process_and_save(
-            train_df,
-            CFG.processed_dir,
-            num_samples=None if not CFG.debug else 100
-        )
-        print(f"Training data processing completed. Processed: {processed_count}, Failed: {failed_count}")
-        
-        # Step 2: Train models
-        print("\nStep 2: Training models...")
-        train_model()
-        
-        # Step 3: Process test data
-        print("\nStep 3: Processing test data...")
-        process_test_data()
-        
-        # Step 4: Generate predictions
-        print("\nStep 4: Generating predictions...")
-        submission = inference()
-        
-        print("\nPipeline completed successfully!")
-        
-        if CFG.debug:
-            print("\nNote: This was run in debug mode. Set CFG.debug = False for full training.")
-        
-        return submission
-        
+        try:
+            # Step 1: Process training data
+            print("\nStep 1: Processing training data...")
+            logging.info("Starting training data processing")
+            
+            train_df = pd.read_csv(CFG.base_path / 'train.csv')
+            if CFG.debug:
+                train_df = train_df.head(100)
+                print("Debug mode: Using only 100 training samples")
+                logging.info("Running in debug mode with 100 samples")
+            
+            preprocessor = RSNAPreprocessor(
+                base_path=CFG.base_path,
+                target_size=CFG.target_size,
+                output_format=CFG.output_format
+            )
+            
+            processed_count, failed_count = preprocessor.process_and_save(
+                train_df,
+                CFG.processed_dir,
+                num_samples=None if not CFG.debug else 100
+            )
+            
+            processing_msg = f"Training data processing completed. Processed: {processed_count}, Failed: {failed_count}"
+            print(processing_msg)
+            logging.info(processing_msg)
+            
+            # Step 2: Train models
+            print("\nStep 2: Training models...")
+            logging.info("Starting model training")
+            best_scores = train_model()
+            
+            if best_scores:
+                mean_cv = np.mean([score['score'] for score in best_scores])
+                logging.info(f"Training completed. Mean CV score: {mean_cv:.4f}")
+            
+            # Step 3: Process test data
+            print("\nStep 3: Processing test data...")
+            logging.info("Starting test data processing")
+            process_test_data()
+            
+            # Step 4: Generate predictions
+            print("\nStep 4: Generating predictions...")
+            logging.info("Starting inference")
+            submission = inference()
+            
+            if submission is not None:
+                submission_stats = {
+                    'mean': submission['cancer'].mean(),
+                    'std': submission['cancer'].std(),
+                    'min': submission['cancer'].min(),
+                    'max': submission['cancer'].max()
+                }
+                logging.info(f"Submission statistics: {submission_stats}")
+            
+            # Calculate and log total runtime
+            end_time = datetime.now()
+            runtime = end_time - start_time
+            runtime_msg = f"\nPipeline completed successfully! Total runtime: {runtime}"
+            print(runtime_msg)
+            logging.info(runtime_msg)
+            
+            if CFG.debug:
+                debug_msg = "\nNote: This was run in debug mode. Set CFG.debug = False for full training."
+                print(debug_msg)
+                logging.info(debug_msg)
+            
+            # Save final summary
+            with open(run_dir / 'run_summary.txt', 'w') as f:
+                f.write(f"Run Summary\n")
+                f.write(f"===========\n")
+                f.write(f"Start time: {start_time}\n")
+                f.write(f"End time: {end_time}\n")
+                f.write(f"Total runtime: {runtime}\n")
+                f.write(f"Processed images: {processed_count}\n")
+                f.write(f"Failed images: {failed_count}\n")
+                if best_scores:
+                    f.write(f"Mean CV score: {mean_cv:.4f}\n")
+                if submission is not None:
+                    f.write(f"\nSubmission Statistics:\n")
+                    for stat, value in submission_stats.items():
+                        f.write(f"{stat}: {value:.4f}\n")
+            
+            return submission
+            
+        except Exception as e:
+            error_msg = f"Pipeline step error: {str(e)}"
+            print(error_msg)
+            logging.error(error_msg)
+            logging.error(traceback.format_exc())
+            return None
+            
     except Exception as e:
-        print(f"\nAn error occurred: {str(e)}")
-        import traceback
+        error_msg = f"Fatal error in pipeline initialization: {str(e)}"
+        print(error_msg)
         print(traceback.format_exc())
         return None
 
