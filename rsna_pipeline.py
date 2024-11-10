@@ -1,44 +1,57 @@
-# At the start of your notebook
-!pip uninstall -y gdcm
-!pip uninstall -y pydicom
-!pip uninstall -y pylibjpeg
+# Uninstall existing packages
+!pip uninstall -y numpy scikit-learn gdcm pydicom pylibjpeg
 
-# Install specific versions
-!pip install gdcm>=3.0.10
-!pip install pydicom>=2.3.0
-!pip install pylibjpeg>=2.0 pylibjpeg-libjpeg>=2.1
-
-# At the start of your notebook
+# Install packages in correct order with specific versions
 !apt-get update && apt-get install -y libgdcm-dev
-!pip uninstall -y gdcm pydicom pylibjpeg
+!pip install --no-cache-dir numpy==1.24.3
+!pip install --no-cache-dir scikit-learn==1.2.2
 !pip install --no-cache-dir gdcm>=3.0.10
 !pip install --no-cache-dir pydicom>=2.3.0
 !pip install --no-cache-dir pylibjpeg>=2.0 pylibjpeg-libjpeg>=2.1
-# Set environment variable to disable albumentations update check
-import os
-os.environ['NO_ALBUMENTATIONS_UPDATE'] = '1'
 
-# Imports
+# Additional required packages
+!pip install --no-cache-dir pandas==1.5.3
+!pip install --no-cache-dir albumentations==1.3.1
+!pip install --no-cache-dir opencv-python-headless==4.8.0.76
+!pip install --no-cache-dir torch==2.0.1
+!pip install --no-cache-dir timm==0.9.2
+
+
+# Basic imports
+import os
 import numpy as np
 import pandas as pd
+
+# Set environment variable
+os.environ['NO_ALBUMENTATIONS_UPDATE'] = '1'
+
+# Scientific/ML imports
+import sklearn
+from sklearn.model_selection import GroupKFold
+from sklearn.metrics import roc_auc_score
+
+# Image processing
+import cv2
 import pydicom
 from pydicom.pixel_data_handlers import gdcm_handler, pillow_handler
 pydicom.config.image_handlers = [gdcm_handler, pillow_handler]
-pydicom.config.GDCM_HANDLER = True  # Use GDCM for DICOM reading
-import cv2
-from pathlib import Path
-from sklearn.model_selection import GroupKFold
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
-from tqdm.auto import tqdm
-import matplotlib.pyplot as plt
-import seaborn as sns
+
+# Deep learning
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torch.cuda.amp import autocast, GradScaler
 import timm
-from sklearn.metrics import roc_auc_score
+
+# Augmentations
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+
+# Utilities
+from pathlib import Path
+from tqdm.auto import tqdm
+import matplotlib.pyplot as plt
+import seaborn as sns
 import gc
 import warnings
 warnings.filterwarnings('ignore')
