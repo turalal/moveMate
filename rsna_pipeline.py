@@ -8,7 +8,7 @@ import pandas as pd
 
 # Machine learning
 import sklearn
-from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import GroupKFold, StratifiedGroupKFold
 from sklearn.metrics import roc_auc_score
 
 # Computer vision
