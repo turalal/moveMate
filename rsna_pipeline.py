@@ -1,21 +1,40 @@
-# Uninstall existing packages
-!pip uninstall -y numpy scikit-learn gdcm pydicom pylibjpeg
+# Remove all potentially conflicting packages
+!pip uninstall -y numpy pandas scikit-learn gdcm pydicom pylibjpeg albumentations torch timm
+!pip cache purge
 
-# Install packages in correct order with specific versions
-!apt-get update && apt-get install -y libgdcm-dev
-!pip install --no-cache-dir numpy==1.24.3
+# Install base packages first
+!pip install --no-cache-dir numpy==1.23.5
+!pip install --no-cache-dir pandas==1.5.3
 !pip install --no-cache-dir scikit-learn==1.2.2
+
+# Install image processing packages
+!apt-get update && apt-get install -y libgdcm-dev
 !pip install --no-cache-dir gdcm>=3.0.10
 !pip install --no-cache-dir pydicom>=2.3.0
 !pip install --no-cache-dir pylibjpeg>=2.0 pylibjpeg-libjpeg>=2.1
-
-# Additional required packages
-!pip install --no-cache-dir pandas==1.5.3
-!pip install --no-cache-dir albumentations==1.3.1
 !pip install --no-cache-dir opencv-python-headless==4.8.0.76
+
+# Install deep learning packages
 !pip install --no-cache-dir torch==2.0.1
 !pip install --no-cache-dir timm==0.9.2
+!pip install --no-cache-dir albumentations==1.3.1
 
+# Verify installations
+!pip list | grep -E "numpy|pandas|scikit-learn|torch|timm|albumentations"
+
+# Import check code
+import numpy as np
+print(f"NumPy version: {np.__version__}")
+import pandas as pd
+print(f"Pandas version: {pd.__version__}")
+import sklearn
+print(f"Scikit-learn version: {sklearn.__version__}")
+import torch
+print(f"PyTorch version: {torch.__version__}")
+import timm
+print(f"Timm version: {timm.__version__}")
+import albumentations as A
+print(f"Albumentations version: {A.__version__}")
 
 # Basic imports
 import os
