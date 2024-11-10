@@ -7,6 +7,13 @@
 !pip install gdcm>=3.0.10
 !pip install pydicom>=2.3.0
 !pip install pylibjpeg>=2.0 pylibjpeg-libjpeg>=2.1
+
+# At the start of your notebook
+!apt-get update && apt-get install -y libgdcm-dev
+!pip uninstall -y gdcm pydicom pylibjpeg
+!pip install --no-cache-dir gdcm>=3.0.10
+!pip install --no-cache-dir pydicom>=2.3.0
+!pip install --no-cache-dir pylibjpeg>=2.0 pylibjpeg-libjpeg>=2.1
 # Set environment variable to disable albumentations update check
 import os
 os.environ['NO_ALBUMENTATIONS_UPDATE'] = '1'
@@ -15,6 +22,8 @@ os.environ['NO_ALBUMENTATIONS_UPDATE'] = '1'
 import numpy as np
 import pandas as pd
 import pydicom
+from pydicom.pixel_data_handlers import gdcm_handler, pillow_handler
+pydicom.config.image_handlers = [gdcm_handler, pillow_handler]
 pydicom.config.GDCM_HANDLER = True  # Use GDCM for DICOM reading
 import cv2
 from pathlib import Path
@@ -60,7 +69,7 @@ class CFG:
     # Model
     model_name = 'efficientnet_b3'
     pretrained = True
-    target_size = 1
+    num_classes = 1 
     
     # Optimizer
     optimizer = 'AdamW'
