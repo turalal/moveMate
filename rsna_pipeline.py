@@ -1,3 +1,9 @@
+# Install required dependencies
+!pip install -U pydicom
+!pip install -U gdcm
+!pip install -U pylibjpeg pylibjpeg-libjpeg>=2.1
+!pip install -U jpg2dcm
+
 # Set environment variable to disable albumentations update check
 import os
 os.environ['NO_ALBUMENTATIONS_UPDATE'] = '1'
@@ -6,6 +12,7 @@ os.environ['NO_ALBUMENTATIONS_UPDATE'] = '1'
 import numpy as np
 import pandas as pd
 import pydicom
+pydicom.config.GDCM_HANDLER = True  # Use GDCM for DICOM reading
 import cv2
 from pathlib import Path
 from sklearn.model_selection import GroupKFold
@@ -83,6 +90,9 @@ class CFG:
         ToTensorV2(),
     ]
 
+
+     
+            
 class RSNAPreprocessor:
     """Handles preprocessing of DICOM images"""
     def __init__(self, **kwargs):
@@ -104,22 +114,61 @@ class RSNAPreprocessor:
             if not dicom_path.exists():
                 print(f"File not found: {dicom_path}")
                 return None
+            
+            # Configure pydicom to use GDCM
+            pydicom.config.image_handlers = [None]  # Reset handlers
+            if pydicom.have_gdcm():
+                pydicom.config.image_handlers = [pydicom.pixel_data_handlers.gdcm_handler]
+            
+            # Read DICOM with specific transfer syntax handling
+            try:
+                dicom = pydicom.dcmread(str(dicom_path), force=True)
                 
-            # Read DICOM with force=True to handle all transfer syntaxes
-            dicom = pydicom.dcmread(dicom_path, force=True)
-            
-            # Handle JPEG Lossless images
-            if hasattr(dicom, 'file_meta') and hasattr(dicom.file_meta, 'TransferSyntaxUID'):
-                if dicom.file_meta.TransferSyntaxUID.is_compressed:
-                    dicom.decompress()
-            
-            img = self._process_dicom_image(dicom)
-            return img
+                # Check if image needs decompression
+                if hasattr(dicom, 'file_meta') and hasattr(dicom.file_meta, 'TransferSyntaxUID'):
+                    if dicom.file_meta.TransferSyntaxUID.is_compressed:
+                        # Try GDCM decompression
+                        try:
+                            dicom.decompress()
+                        except Exception as e:
+                            print(f"GDCM decompression failed, trying alternative method: {str(e)}")
+                            # Alternative method using pylibjpeg if GDCM fails
+                            pydicom.config.image_handlers = [pydicom.pixel_data_handlers.pillow_handler]
+                            dicom = pydicom.dcmread(str(dicom_path), force=True)
+                
+                img = self._process_dicom_image(dicom)
+                return img
+                
+            except Exception as e:
+                print(f"Error reading DICOM: {str(e)}")
+                return None
 
         except Exception as e:
             print(f"Error processing image {image_id} for patient {patient_id}: {str(e)}")
             return None
 
+    def _try_alternate_reading(self, dicom_path):
+        """Try different methods to read problematic DICOM files"""
+        try:
+            # Try GDCM first
+            pydicom.config.image_handlers = [pydicom.pixel_data_handlers.gdcm_handler]
+            dicom = pydicom.dcmread(str(dicom_path), force=True)
+            return dicom
+        except:
+            try:
+                # Try PyLibJPEG
+                pydicom.config.image_handlers = [pydicom.pixel_data_handlers.pillow_handler]
+                dicom = pydicom.dcmread(str(dicom_path), force=True)
+                return dicom
+            except:
+                try:
+                    # Try without any specific handler
+                    pydicom.config.image_handlers = [None]
+                    dicom = pydicom.dcmread(str(dicom_path), force=True)
+                    return dicom
+                except:
+                    return None
+       
     def _process_dicom_image(self, dicom):
         try:
             # Convert pixel_array to float32 to avoid precision issues
@@ -235,7 +284,6 @@ class RSNAPreprocessor:
             (output_dir / view).mkdir(exist_ok=True)
             (output_dir / view / 'L').mkdir(exist_ok=True)
             (output_dir / view / 'R').mkdir(exist_ok=True)
-
 
 class RSNADataset(Dataset):
     """PyTorch Dataset for RSNA images"""
