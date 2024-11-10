@@ -89,9 +89,7 @@ class CFG:
         A.Normalize(),
         ToTensorV2(),
     ]
-
-
-     
+    
             
 class RSNAPreprocessor:
     """Handles preprocessing of DICOM images"""
