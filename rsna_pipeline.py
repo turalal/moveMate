@@ -752,6 +752,131 @@ class AverageMeter:
         self.count += n
         self.avg = self.sum / self.count
 
+class TrainingMonitor:
+    """Training monitoring and visualization utilities"""
+    def __init__(self, cfg):
+        self.cfg = cfg
+        
+        # Import required libraries
+        import matplotlib.pyplot as plt
+        self.plt = plt
+        
+        # Create directories for saving monitoring data
+        self.monitor_dir = cfg.model_dir / 'monitoring'
+        self.monitor_dir.mkdir(exist_ok=True)
+        
+    def visualize_training_progress(self, fold_history):
+        """Plot training progress for a fold"""
+        epochs = range(1, len(fold_history['train_loss']) + 1)
+        
+        fig, (ax1, ax2) = self.plt.subplots(1, 2, figsize=(15, 5))
+        
+        # Plot losses
+        ax1.plot(epochs, fold_history['train_loss'], 'b-', label='Train Loss')
+        ax1.plot(epochs, fold_history['valid_loss'], 'r-', label='Valid Loss')
+        ax1.set_title('Training and Validation Loss')
+        ax1.set_xlabel('Epoch')
+        ax1.set_ylabel('Loss')
+        ax1.legend()
+        ax1.grid(True)
+        
+        # Plot validation score
+        ax2.plot(epochs, fold_history['valid_score'], 'g-', label='Valid Score')
+        ax2.set_title('Validation Score')
+        ax2.set_xlabel('Epoch')
+        ax2.set_ylabel('Score')
+        ax2.legend()
+        ax2.grid(True)
+        
+        self.plt.tight_layout()
+        return fig
+    
+    def print_model_summary(self, model):
+        """Print detailed model summary"""
+        total_params = sum(p.numel() for p in model.parameters())
+        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        
+        print(f"\nModel Summary:")
+        print(f"Architecture: {self.cfg.model_name}")
+        print(f"Total parameters: {total_params:,}")
+        print(f"Trainable parameters: {trainable_params:,}")
+        print(f"Non-trainable parameters: {total_params - trainable_params:,}")
+        
+        # Layer-wise summary
+        layer_info = model.get_layer_info()
+        print("\nLayer-wise parameter distribution:")
+        for _, row in layer_info.iterrows():
+            if row['parameters'] > 0:
+                print(f"{row['name']}: {row['type']} - {row['parameters']:,} parameters")
+    
+    def log_fold_metrics(self, fold, fold_history, best_score, best_loss):
+        """Log fold metrics to file"""
+        metrics_path = self.monitor_dir / 'training_metrics.txt'
+        
+        with open(metrics_path, 'a') as f:
+            f.write(f"\nFold {fold + 1} Results:\n")
+            f.write(f"Best Score: {best_score:.4f}\n")
+            f.write(f"Best Loss: {best_loss:.4f}\n")
+            f.write(f"Final Train Loss: {fold_history['train_loss'][-1]:.4f}\n")
+            f.write(f"Final Valid Loss: {fold_history['valid_loss'][-1]:.4f}\n")
+            f.write("-" * 50 + "\n")
+    
+    def save_fold_predictions(self, fold, valid_predictions, valid_targets, fold_df):
+        """Save fold predictions for analysis"""
+        pred_df = pd.DataFrame({
+            'patient_id': fold_df['patient_id'],
+            'image_id': fold_df['image_id'],
+            'true_label': valid_targets,
+            'prediction': valid_predictions,
+            'fold': fold
+        })
+        
+        pred_path = self.monitor_dir / f'fold{fold}_predictions.csv'
+        pred_df.to_csv(pred_path, index=False)
+    
+    def analyze_predictions(self, predictions_path):
+        """Analyze model predictions"""
+        pred_df = pd.read_csv(predictions_path)
+        
+        # Calculate metrics
+        metrics = {
+            'auc_score': roc_auc_score(pred_df['true_label'], pred_df['prediction']),
+            'avg_prediction': pred_df['prediction'].mean(),
+            'std_prediction': pred_df['prediction'].std(),
+            'positive_rate': (pred_df['prediction'] > 0.5).mean(),
+            'true_positive_rate': (
+                (pred_df['prediction'] > 0.5) & 
+                (pred_df['true_label'] == 1)
+            ).mean()
+        }
+        
+        return metrics
+    
+    def monitor_gpu_usage(self):
+        """Monitor GPU memory usage"""
+        if torch.cuda.is_available():
+            gpu_memory = []
+            for i in range(torch.cuda.device_count()):
+                memory_allocated = torch.cuda.memory_allocated(i) / 1024**2
+                memory_reserved = torch.cuda.memory_reserved(i) / 1024**2
+                gpu_memory.append({
+                    'device': i,
+                    'allocated_mb': memory_allocated,
+                    'reserved_mb': memory_reserved
+                })
+            return gpu_memory
+        return None
+    
+    def save_batch_metrics(self, batch_idx, metrics, fold, epoch):
+        """Save batch-level metrics"""
+        metrics_file = self.monitor_dir / f'fold{fold}_epoch{epoch}_batch_metrics.csv'
+        
+        pd.DataFrame([{
+            'batch': batch_idx,
+            **metrics
+        }]).to_csv(metrics_file, mode='a', header=not metrics_file.exists(), index=False)
+
+
 def train_one_epoch(model, train_loader, criterion, optimizer, scheduler, device):
     """Trains the model for one epoch"""
     model.train()
@@ -846,16 +971,17 @@ def get_dataloader(dataset, batch_size, shuffle=True, is_train=True):
         )
 
 def train_model():
-    """Main training loop with enhanced error handling and logging"""
+    """Main training loop with enhanced error handling and monitoring"""
     # Set seeds for reproducibility
     torch.manual_seed(CFG.seed)
     np.random.seed(CFG.seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     
-    # Initialize training metrics
+    # Initialize training metrics and monitor
     fold_scores = []
     best_scores = []
+    monitor = TrainingMonitor(CFG)
     
     try:
         # Read and prepare data
@@ -932,6 +1058,9 @@ def train_model():
                 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
                 model = RSNAModel().to(device)
                 
+                # Print model summary
+                monitor.print_model_summary(model)
+                
                 # Calculate class weights for imbalanced dataset
                 pos_weight = (
                     len(train_fold[train_fold['cancer'] == 0]) / 
@@ -968,6 +1097,15 @@ def train_model():
                 for epoch in range(CFG.epochs):
                     print(f'\nEpoch {epoch + 1}/{CFG.epochs}')
                     
+                    # Monitor GPU usage at start of epoch
+                    gpu_stats = monitor.monitor_gpu_usage()
+                    if gpu_stats:
+                        print("\nGPU Memory Usage:")
+                        for stat in gpu_stats:
+                            print(f"Device {stat['device']}: "
+                                  f"{stat['allocated_mb']:.0f}MB allocated, "
+                                  f"{stat['reserved_mb']:.0f}MB reserved")
+                    
                     try:
                         # Training phase
                         train_loss = train_one_epoch(
@@ -985,6 +1123,18 @@ def train_model():
                         fold_history['valid_loss'].append(valid_loss)
                         fold_history['valid_score'].append(valid_score)
                         
+                        # Save batch metrics
+                        monitor.save_batch_metrics(
+                            epoch, 
+                            {
+                                'train_loss': train_loss,
+                                'valid_loss': valid_loss,
+                                'valid_score': valid_score
+                            },
+                            fold,
+                            epoch
+                        )
+                        
                         # Print metrics
                         print(
                             f'Train Loss: {train_loss:.4f} '
@@ -992,10 +1142,12 @@ def train_model():
                             f'Valid Score: {valid_score:.4f}'
                         )
                         
-                        # Save best model
+                        # Save best model and visualize
                         if valid_score > best_score:
                             best_score = valid_score
                             best_loss = valid_loss
+                            
+                            # Save model
                             torch.save(
                                 {
                                     'epoch': epoch,
@@ -1009,16 +1161,20 @@ def train_model():
                                 CFG.model_dir / f'fold{fold}_best.pth'
                             )
                             print(f'Best model saved! Score: {best_score:.4f}')
+                            
+                            # Visualization and logging
+                            fig = monitor.visualize_training_progress(fold_history)
+                            fig.savefig(monitor.monitor_dir / f'fold{fold}_training_progress.png')
+                            plt.close(fig)
+                            
+                            monitor.log_fold_metrics(fold, fold_history, best_score, best_loss)
                             patience_counter = 0
                         else:
                             patience_counter += 1
                             
                         # Early stopping check
                         if patience_counter >= CFG.patience:
-                            print(
-                                f'Early stopping triggered after '
-                                f'{epoch + 1} epochs'
-                            )
+                            print(f'Early stopping triggered after {epoch + 1} epochs')
                             break
                             
                     except Exception as e:
@@ -1026,13 +1182,17 @@ def train_model():
                         print(traceback.format_exc())
                         break
                 
-                # Store fold results
+                # Store fold results and save predictions
                 fold_scores.append(best_score)
                 best_scores.append({
                     'fold': fold,
                     'score': best_score,
                     'loss': best_loss
                 })
+                
+                # Save validation predictions
+                valid_preds = model(valid_dataset[::]['images'].to(device)).sigmoid().cpu().numpy()
+                monitor.save_fold_predictions(fold, valid_preds, valid_dataset[::]['labels'].numpy(), valid_fold)
                 
             except Exception as e:
                 print(f"Error in fold {fold + 1}: {str(e)}")
@@ -1063,6 +1223,15 @@ def train_model():
         
         print(f"\nMean CV score: {np.mean(fold_scores):.4f}")
         print(f"Std CV score: {np.std(fold_scores):.4f}")
+        
+        # Analyze overall predictions
+        for fold in range(CFG.num_folds):
+            pred_path = monitor.monitor_dir / f'fold{fold}_predictions.csv'
+            if pred_path.exists():
+                metrics = monitor.analyze_predictions(pred_path)
+                print(f"\nFold {fold + 1} Prediction Analysis:")
+                for metric_name, value in metrics.items():
+                    print(f"{metric_name}: {value:.4f}")
         
         return best_scores
         
