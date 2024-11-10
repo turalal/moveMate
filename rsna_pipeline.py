@@ -694,4 +694,6 @@ def main():
         return None
 
 if __name__ == "__main__":
+    # Ensure proper multiprocessing behavior
+    torch.multiprocessing.set_start_method('spawn', force=True)
     main()

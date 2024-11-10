@@ -1,28 +1,3 @@
-def get_dataloader(dataset, batch_size, shuffle=True, is_train=True):
-    """Safe DataLoader creation with proper worker initialization"""
-    return DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=0,  # Set to 0 to avoid multiprocessing issues
-        pin_memory=True,
-        drop_last=is_train,
-        persistent_workers=False,  # Disable persistent workers
-    )
-
-class CFG:
-    """Configuration class containing all parameters"""
-    # Previous settings remain...
-    
-    # Modified training parameters
-    num_workers = 0  # Changed from 4 to 0
-    train_batch_size = 8  # Reduced from 16
-    valid_batch_size = 16  # Reduced from 32
-    
-    # Add safety flags
-    persistent_workers = False
-    pin_memory = True
-    
 def train_model():
     """Main training loop with enhanced error handling"""
     torch.manual_seed(CFG.seed)
@@ -104,8 +79,3 @@ def train_model():
     except Exception as e:
         print(f"Error in training: {str(e)}")
         return None
-
-if __name__ == "__main__":
-    # Ensure proper multiprocessing behavior
-    torch.multiprocessing.set_start_method('spawn', force=True)
-    main()
