@@ -371,35 +371,6 @@ def train_one_epoch(model, train_loader, criterion, optimizer, scheduler, device
     return losses.avg
 
 def valid_one_epoch(model, valid_loader, criterion, device):
-    """Validates the model for one epoch"""
-    model.eval()
-    losses = AverageMeter()
-    preds = []
-    targets = []
-    
-    pbar = tqdm(valid_loader, desc='Validation')
-    
-    with torch.no_grad():
-        for images, labels in pbar:
-            images = images.to(device)
-            labels = labels.to(device)
-            
-            y_preds = model(images).squeeze(1)
-            loss = criterion(y_preds, labels)
-            
-            losses.update(loss.item(), labels.size(0))
-            preds.append(y_preds.sigmoid().cpu().numpy())
-            targets.append(labels.cpu().numpy())
-            
-            pbar.set_postfix({'valid_loss': losses.avg})
-    
-    preds = np.concatenate(preds)
-    targets = np.concatenate(targets)
-    score = roc_auc_score(targets, preds)
-    
-    return losses.avg, score
-
-def valid_one_epoch(model, valid_loader, criterion, device):
     """Validates the model for one epoch with safe metric calculation"""
     model.eval()
     losses = AverageMeter()
