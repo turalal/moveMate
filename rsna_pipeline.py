@@ -597,20 +597,144 @@ class RSNADataset(Dataset):
         """Clear the image cache"""
         self.image_cache.clear()
 
-
 class RSNAModel(nn.Module):
-    """Model architecture"""
-    def __init__(self):
+    """Enhanced model architecture with attention and feature extraction"""
+    def __init__(self, model_name=CFG.model_name, pretrained=CFG.pretrained):
         super().__init__()
-        self.model = timm.create_model(
-            CFG.model_name, 
-            pretrained=CFG.pretrained, 
-            num_classes=CFG.num_classes  # Changed from target_size
+        
+        # Initialize base model
+        self.base_model = timm.create_model(
+            model_name,
+            pretrained=pretrained,
+            num_classes=0  # Remove classifier to add custom head
         )
         
+        # Get number of features from base model
+        self.num_features = self.base_model.num_features
+        
+        # Add attention mechanism
+        self.attention = nn.Sequential(
+            nn.Linear(self.num_features, self.num_features // 16),
+            nn.ReLU(),
+            nn.Linear(self.num_features // 16, self.num_features),
+            nn.Sigmoid()
+        )
+        
+        # Add classifier head
+        self.classifier = nn.Sequential(
+            nn.Dropout(0.5),
+            nn.Linear(self.num_features, CFG.num_classes)
+        )
+        
+        # Initialize metrics tracking
+        self.batch_predictions = []
+        self.batch_targets = []
+        
     def forward(self, x):
-        return self.model(x)
+        """Forward pass with attention mechanism"""
+        # Get features from base model
+        features = self.base_model.forward_features(x)
+        
+        # Apply global average pooling if needed
+        if len(features.shape) > 2:
+            features = nn.functional.adaptive_avg_pool2d(features, 1).squeeze(-1).squeeze(-1)
+        
+        # Apply attention
+        attention_weights = self.attention(features)
+        features = features * attention_weights
+        
+        # Final classification
+        output = self.classifier(features)
+        return output
     
+    def get_attention_maps(self, x):
+        """Get attention maps for visualization"""
+        self.eval()
+        with torch.no_grad():
+            features = self.base_model.forward_features(x)
+            attention = self.attention(features.mean((-2, -1)))
+            attention = attention.view(attention.size(0), -1, 1, 1)
+            attention_maps = features * attention
+        return attention_maps
+    
+    def get_features(self, x):
+        """Extract features for analysis"""
+        self.eval()
+        with torch.no_grad():
+            features = self.base_model.forward_features(x)
+            if len(features.shape) > 2:
+                features = nn.functional.adaptive_avg_pool2d(features, 1).squeeze(-1).squeeze(-1)
+        return features
+    
+    def count_parameters(self):
+        """Count trainable parameters"""
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+    
+    def get_layer_info(self):
+        """Get information about model layers"""
+        layers_info = []
+        for name, module in self.named_modules():
+            if len(list(module.children())) == 0:  # Leaf module
+                num_params = sum(p.numel() for p in module.parameters(if_exists=True))
+                layers_info.append({
+                    'name': name,
+                    'type': module.__class__.__name__,
+                    'parameters': num_params,
+                })
+        return pd.DataFrame(layers_info)
+    
+    @torch.no_grad()
+    def update_metrics(self, outputs, targets):
+        """Update batch-wise metrics"""
+        predictions = torch.sigmoid(outputs).cpu().numpy()
+        targets = targets.cpu().numpy()
+        
+        self.batch_predictions.extend(predictions)
+        self.batch_targets.extend(targets)
+    
+    def get_metrics(self):
+        """Calculate current metrics"""
+        if not self.batch_predictions:
+            return {}
+            
+        predictions = np.array(self.batch_predictions)
+        targets = np.array(self.batch_targets)
+        
+        try:
+            auc_score = roc_auc_score(targets, predictions)
+        except:
+            auc_score = float('nan')
+            
+        metrics = {
+            'auc_score': auc_score,
+            'avg_prediction': predictions.mean(),
+            'pos_ratio': (targets == 1).mean(),
+        }
+        
+        # Reset tracking
+        self.batch_predictions = []
+        self.batch_targets = []
+        
+        return metrics
+
+    def freeze_backbone(self, freeze=True):
+        """Freeze/unfreeze backbone for transfer learning"""
+        for param in self.base_model.parameters():
+            param.requires_grad = not freeze
+            
+    def load_pretrained(self, checkpoint_path):
+        """Safe loading of pretrained weights"""
+        try:
+            checkpoint = torch.load(checkpoint_path, map_location='cpu')
+            if 'model_state_dict' in checkpoint:
+                self.load_state_dict(checkpoint['model_state_dict'])
+            else:
+                self.load_state_dict(checkpoint)
+            return True
+        except Exception as e:
+            print(f"Error loading pretrained weights: {str(e)}")
+            return False
+        
 class AverageMeter:
     """Computes and stores the average and current value"""
     def __init__(self):
