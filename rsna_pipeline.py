@@ -105,8 +105,32 @@ class RSNAPreprocessor:
     """Handles preprocessing of DICOM images"""
     """Enhanced preprocessing with parallel processing and better error handling"""
     def __init__(self, **kwargs):
-        # Previous initialization code remains...
-        self.error_log = []  # Add error logging
+        self.base_path = kwargs.get('base_path', CFG.base_path)
+        self.target_size = kwargs.get('target_size', CFG.target_size)
+        self.output_format = kwargs.get('output_format', CFG.output_format)
+        
+        # Initialize paths
+        self.train_images_path = self.base_path / "train_images"
+        self.test_images_path = self.base_path / "test_images"
+        
+        # Validate output format
+        if self.output_format not in ['png', 'jpg', 'jpeg']:
+            raise ValueError("output_format must be 'png' or 'jpg'/'jpeg'")
+        
+        # Initialize error logging
+        self.error_log = []
+        
+        # Initialize CLAHE object once
+        self.clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        
+        # Verify paths exist
+        if not self.train_images_path.exists():
+            raise ValueError(f"Train images path does not exist: {self.train_images_path}")
+        if not self.test_images_path.exists():
+            raise ValueError(f"Test images path does not exist: {self.test_images_path}")
+            
+        # Set image handlers for pydicom
+        pydicom.config.image_handlers = [gdcm_handler, pillow_handler]
 
     def read_dicom(self, patient_id, image_id, is_train=True):
         try:
