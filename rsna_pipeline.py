@@ -105,7 +105,14 @@ class RSNAPreprocessor:
                 print(f"File not found: {dicom_path}")
                 return None
                 
-            dicom = pydicom.dcmread(dicom_path)
+            # Read DICOM with force=True to handle all transfer syntaxes
+            dicom = pydicom.dcmread(dicom_path, force=True)
+            
+            # Handle JPEG Lossless images
+            if hasattr(dicom, 'file_meta') and hasattr(dicom.file_meta, 'TransferSyntaxUID'):
+                if dicom.file_meta.TransferSyntaxUID.is_compressed:
+                    dicom.decompress()
+            
             img = self._process_dicom_image(dicom)
             return img
 
@@ -114,22 +121,49 @@ class RSNAPreprocessor:
             return None
 
     def _process_dicom_image(self, dicom):
-        img = dicom.pixel_array.astype(float)
-        
-        # Normalize
-        if img.max() != img.min():
-            img = (img - img.min()) / (img.max() - img.min())
-        img = (img * 255).astype(np.uint8)
-        
-        # Apply CLAHE
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-        img = clahe.apply(img)
-        
-        # Resize maintaining aspect ratio
-        img = self._resize_with_padding(img)
-        return img
+        try:
+            # Convert pixel_array to float32 to avoid precision issues
+            img = dicom.pixel_array.astype(np.float32)
+            
+            # Check if we need to apply VOI LUT transformation
+            if hasattr(dicom, 'WindowCenter') and hasattr(dicom, 'WindowWidth'):
+                voi_center = dicom.WindowCenter
+                voi_width = dicom.WindowWidth
+                if isinstance(voi_center, pydicom.multival.MultiValue):
+                    voi_center = float(voi_center[0])
+                if isinstance(voi_width, pydicom.multival.MultiValue):
+                    voi_width = float(voi_width[0])
+                    
+                voi_lower = voi_center - voi_width / 2
+                voi_upper = voi_center + voi_width / 2
+                img = np.clip(img, voi_lower, voi_upper)
+            
+            # Normalize to [0,1]
+            if img.max() != img.min():
+                img = (img - img.min()) / (img.max() - img.min())
+            
+            # Convert to uint8 [0,255]
+            img = (img * 255).astype(np.uint8)
+            
+            # Apply CLAHE for better contrast
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+            img = clahe.apply(img)
+            
+            # Handle different photometric interpretations
+            if hasattr(dicom, 'PhotometricInterpretation'):
+                if dicom.PhotometricInterpretation == "MONOCHROME1":
+                    img = 255 - img
+            
+            return img
+            
+        except Exception as e:
+            print(f"Error in _process_dicom_image: {str(e)}")
+            return None
 
     def _resize_with_padding(self, img):
+        if img is None:
+            return None
+            
         aspect = img.shape[0] / img.shape[1]
         if aspect > 1:
             new_height = self.target_size[0]
@@ -201,6 +235,7 @@ class RSNAPreprocessor:
             (output_dir / view).mkdir(exist_ok=True)
             (output_dir / view / 'L').mkdir(exist_ok=True)
             (output_dir / view / 'R').mkdir(exist_ok=True)
+
 
 class RSNADataset(Dataset):
     """PyTorch Dataset for RSNA images"""
