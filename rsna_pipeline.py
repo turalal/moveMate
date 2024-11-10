@@ -112,35 +112,34 @@ class RSNAPreprocessor:
             if not dicom_path.exists():
                 print(f"File not found: {dicom_path}")
                 return None
+                
+            # Simple DICOM reading without GDCM check
+            dicom = pydicom.dcmread(str(dicom_path), force=True)
             
-            # Configure pydicom to use GDCM
-            pydicom.config.image_handlers = [None]  # Reset handlers
-            if pydicom.have_gdcm():
-                pydicom.config.image_handlers = [pydicom.pixel_data_handlers.gdcm_handler]
-            
-            # Read DICOM with specific transfer syntax handling
             try:
-                dicom = pydicom.dcmread(str(dicom_path), force=True)
-                
-                # Check if image needs decompression
-                if hasattr(dicom, 'file_meta') and hasattr(dicom.file_meta, 'TransferSyntaxUID'):
-                    if dicom.file_meta.TransferSyntaxUID.is_compressed:
-                        # Try GDCM decompression
-                        try:
-                            dicom.decompress()
-                        except Exception as e:
-                            print(f"GDCM decompression failed, trying alternative method: {str(e)}")
-                            # Alternative method using pylibjpeg if GDCM fails
-                            pydicom.config.image_handlers = [pydicom.pixel_data_handlers.pillow_handler]
-                            dicom = pydicom.dcmread(str(dicom_path), force=True)
-                
-                img = self._process_dicom_image(dicom)
-                return img
-                
+                # Try to access pixel_array
+                img = dicom.pixel_array
             except Exception as e:
-                print(f"Error reading DICOM: {str(e)}")
+                print(f"Error reading pixel array: {str(e)}")
                 return None
-
+                
+            # Convert to float and normalize
+            img = img.astype(float)
+            
+            # Normalize
+            if img.max() != img.min():
+                img = (img - img.min()) / (img.max() - img.min())
+            img = (img * 255).astype(np.uint8)
+            
+            # Apply CLAHE for better contrast
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+            img = clahe.apply(img)
+            
+            # Resize with padding
+            img = self._resize_with_padding(img)
+            
+            return img
+                
         except Exception as e:
             print(f"Error processing image {image_id} for patient {patient_id}: {str(e)}")
             return None
@@ -166,43 +165,22 @@ class RSNAPreprocessor:
                     return dicom
                 except:
                     return None
-       
+
     def _process_dicom_image(self, dicom):
         try:
-            # Convert pixel_array to float32 to avoid precision issues
             img = dicom.pixel_array.astype(np.float32)
             
-            # Check if we need to apply VOI LUT transformation
-            if hasattr(dicom, 'WindowCenter') and hasattr(dicom, 'WindowWidth'):
-                voi_center = dicom.WindowCenter
-                voi_width = dicom.WindowWidth
-                if isinstance(voi_center, pydicom.multival.MultiValue):
-                    voi_center = float(voi_center[0])
-                if isinstance(voi_width, pydicom.multival.MultiValue):
-                    voi_width = float(voi_width[0])
-                    
-                voi_lower = voi_center - voi_width / 2
-                voi_upper = voi_center + voi_width / 2
-                img = np.clip(img, voi_lower, voi_upper)
-            
-            # Normalize to [0,1]
+            # Basic normalization
             if img.max() != img.min():
                 img = (img - img.min()) / (img.max() - img.min())
-            
-            # Convert to uint8 [0,255]
             img = (img * 255).astype(np.uint8)
             
-            # Apply CLAHE for better contrast
+            # Apply CLAHE
             clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
             img = clahe.apply(img)
             
-            # Handle different photometric interpretations
-            if hasattr(dicom, 'PhotometricInterpretation'):
-                if dicom.PhotometricInterpretation == "MONOCHROME1":
-                    img = 255 - img
-            
             return img
-            
+                
         except Exception as e:
             print(f"Error in _process_dicom_image: {str(e)}")
             return None
@@ -233,12 +211,19 @@ class RSNAPreprocessor:
         )
 
     def save_image(self, img, output_path):
-        if img is not None:
-            if self.output_format == 'png':
-                cv2.imwrite(str(output_path.with_suffix('.png')), img)
-            else:
-                cv2.imwrite(str(output_path.with_suffix('.jpg')), img, [cv2.IMWRITE_JPEG_QUALITY, 100])
-
+        """Save image with error checking"""
+        try:
+            if img is not None and img.size > 0:
+                if self.output_format == 'png':
+                    success = cv2.imwrite(str(output_path.with_suffix('.png')), img)
+                else:
+                    success = cv2.imwrite(str(output_path.with_suffix('.jpg')), img, 
+                                        [cv2.IMWRITE_JPEG_QUALITY, 100])
+                return success
+            return False
+        except Exception as e:
+            print(f"Error saving image to {output_path}: {str(e)}")
+            return False
     def process_and_save(self, metadata_df, output_dir, num_samples=None):
         if num_samples:
             metadata_df = metadata_df.head(num_samples)
@@ -256,17 +241,19 @@ class RSNAPreprocessor:
                     image_id=str(row['image_id'])
                 )
                 
-                if img is not None:
+                if img is not None and img.size > 0:  # Add size check
                     # Save main image
                     output_path = output_dir / row['view'] / row['laterality'] / f"{row['patient_id']}_{row['image_id']}"
-                    self.save_image(img, output_path)
+                    success = self.save_image(img, output_path)
                     
-                    # Save thumbnail
-                    thumbnail = cv2.resize(img, (512, 512))
-                    thumbnail_path = output_path.with_name(f"{output_path.stem}_thumb")
-                    self.save_image(thumbnail, thumbnail_path)
-                    
-                    processed_count += 1
+                    if success:
+                        # Only save thumbnail if main image was saved successfully
+                        thumbnail = cv2.resize(img, (512, 512))
+                        thumbnail_path = output_path.with_name(f"{output_path.stem}_thumb")
+                        self.save_image(thumbnail, thumbnail_path)
+                        processed_count += 1
+                    else:
+                        failed_count += 1
                 else:
                     failed_count += 1
                     
