@@ -87,6 +87,12 @@ class CFG:
     min_lr = 1e-7
     T_max = int(epochs * 0.7)
     
+    # Class balancing parameters
+    focal_loss_alpha = 0.25
+    focal_loss_gamma = 2.0
+    use_class_weights = True
+    oversample_minority = True
+    
     # Augmentations
     train_aug_list = [
         A.RandomRotate90(p=0.5),
