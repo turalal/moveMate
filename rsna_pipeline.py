@@ -10,6 +10,9 @@ import pandas as pd
 import sklearn
 from sklearn.model_selection import GroupKFold, StratifiedGroupKFold
 from sklearn.metrics import roc_auc_score
+from torch.utils.data.sampler import WeightedRandomSampler
+from sklearn.utils.class_weight import compute_class_weight
+
 
 # Computer vision
 import cv2
@@ -19,6 +22,7 @@ pydicom.config.image_handlers = [gdcm_handler, pillow_handler]
 
 # Deep learning
 import torch
+import torch.nn.functional as F
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torch.cuda.amp import autocast, GradScaler
@@ -36,6 +40,7 @@ from datetime import datetime
 # Logging
 import sys
 import logging
+
 # Utilities
 from pathlib import Path
 from tqdm.auto import tqdm
@@ -114,6 +119,74 @@ class CFG:
         A.Normalize(),
         ToTensorV2(),
     ]
+
+class BalancedRSNADataset(Dataset):
+    """Enhanced Dataset with class balancing capabilities"""
+    def __init__(self, df, transform=None, is_train=True):
+        self.df = df
+        self.transform = transform
+        self.is_train = is_train
+        self.image_cache = {}
+        
+        # Calculate class weights if training
+        if is_train:
+            self.class_weights = compute_class_weight(
+                class_weight='balanced',
+                classes=np.unique(df['cancer']),
+                y=df['cancer']
+            )
+            self.class_weights = torch.FloatTensor(self.class_weights)
+            
+            # Calculate sample weights for WeightedRandomSampler
+            self.sample_weights = [
+                self.class_weights[int(label)] for label in df['cancer']
+            ]
+        
+    def get_sampler(self):
+        """Returns WeightedRandomSampler for balanced batches"""
+        if self.is_train:
+            return WeightedRandomSampler(
+                self.sample_weights,
+                len(self.sample_weights),
+                replacement=True
+            )
+        return None
+    
+    def __getitem__(self, idx):
+        # Same as your original RSNADataset __getitem__
+        row = self.df.iloc[idx]
+        img_path = CFG.processed_dir / row['view'] / row['laterality'] / f"{row['patient_id']}_{row['image_id']}.png"
+        
+        img = self._load_image(img_path)
+        if img is None:
+            img = self._get_blank_image()
+            print(f"Warning: Using blank image for: {img_path}")
+        
+        if self.transform:
+            try:
+                transformed = self.transform(image=img)
+                img = transformed['image']
+            except Exception as e:
+                print(f"Error in transformation: {str(e)}")
+                img = self.transform(image=self._get_blank_image())['image']
+        
+        if self.is_train:
+            label = torch.tensor(row['cancer'], dtype=torch.float32)
+            return img, label
+        else:
+            return img
+    
+    def __len__(self):
+        return len(self.df)
+
+    def get_class_distribution(self):
+        """Calculate current class distribution"""
+        return self.df['cancer'].value_counts(normalize=True).to_dict()
+
+    def get_class_ratio(self):
+        """Calculate ratio between classes"""
+        dist = self.get_class_distribution()
+        return dist[0] / dist[1] if 1 in dist else float('inf')
 
 class FocalLoss(nn.Module):
     """Focal Loss for dealing with class imbalance"""
@@ -1001,7 +1074,7 @@ def get_dataloader(dataset, batch_size, shuffle=True, is_train=True):
         )
 
 def train_model():
-    """Main training loop with enhanced error handling and monitoring"""
+    """Main training loop with enhanced error handling, monitoring and class balance handling"""
     # Set seeds for reproducibility
     torch.manual_seed(CFG.seed)
     np.random.seed(CFG.seed)
@@ -1020,9 +1093,12 @@ def train_model():
             train_df = train_df.head(100)
             print("Debug mode: Using only 100 training samples")
         
-        # Print initial class distribution
+        # Print initial class distribution and imbalance ratio
         print("\nOverall class distribution:")
-        print(train_df['cancer'].value_counts(normalize=True))
+        class_dist = train_df['cancer'].value_counts(normalize=True)
+        print(class_dist)
+        imbalance_ratio = class_dist[0] / class_dist[1]
+        print(f"Imbalance ratio (negative:positive): {imbalance_ratio:.2f}:1")
         
         # Create stratified folds
         skf = StratifiedGroupKFold(
@@ -1057,27 +1133,30 @@ def train_model():
                 
                 # Print fold-specific class distributions
                 print("\nTrain fold class distribution:")
-                print(train_fold['cancer'].value_counts(normalize=True))
+                train_dist = train_fold['cancer'].value_counts(normalize=True)
+                print(train_dist)
                 print("\nValid fold class distribution:")
                 print(valid_fold['cancer'].value_counts(normalize=True))
                 
-                # Create datasets
-                train_dataset = RSNADataset(
+                # Create datasets with balanced sampling
+                train_dataset = BalancedRSNADataset(
                     train_fold, 
-                    transform=A.Compose(CFG.train_aug_list)
+                    transform=A.Compose(CFG.train_aug_list),
+                    is_train=True
                 )
-                valid_dataset = RSNADataset(
+                valid_dataset = BalancedRSNADataset(
                     valid_fold, 
-                    transform=A.Compose(CFG.valid_aug_list)
+                    transform=A.Compose(CFG.valid_aug_list),
+                    is_train=False
                 )
                 
-                # Create dataloaders with safe settings
-                train_loader = get_dataloader(
+                # Create dataloaders with balanced sampling for training
+                train_loader = get_balanced_dataloader(
                     train_dataset, 
                     CFG.train_batch_size, 
-                    shuffle=True
+                    is_train=True
                 )
-                valid_loader = get_dataloader(
+                valid_loader = get_balanced_dataloader(
                     valid_dataset, 
                     CFG.valid_batch_size, 
                     shuffle=False, 
@@ -1091,14 +1170,11 @@ def train_model():
                 # Print model summary
                 monitor.print_model_summary(model)
                 
-                # Calculate class weights for imbalanced dataset
-                pos_weight = (
-                    len(train_fold[train_fold['cancer'] == 0]) / 
-                    max(1, len(train_fold[train_fold['cancer'] == 1]))
-                )
-                criterion = nn.BCEWithLogitsLoss(
-                    pos_weight=torch.tensor([pos_weight]).to(device)
-                )
+                # Initialize Focal Loss with class balancing
+                criterion = FocalLoss(
+                    alpha=CFG.focal_loss_alpha,
+                    gamma=CFG.focal_loss_gamma
+                ).to(device)
                 
                 # Initialize optimizer
                 optimizer = getattr(torch.optim, CFG.optimizer)(
@@ -1121,13 +1197,14 @@ def train_model():
                 fold_history = {
                     'train_loss': [],
                     'valid_loss': [],
-                    'valid_score': []
+                    'valid_score': [],
+                    'class_distribution': []  # Track class distribution
                 }
                 
                 for epoch in range(CFG.epochs):
                     print(f'\nEpoch {epoch + 1}/{CFG.epochs}')
                     
-                    # Monitor GPU usage at start of epoch
+                    # Monitor GPU usage and class distribution
                     gpu_stats = monitor.monitor_gpu_usage()
                     if gpu_stats:
                         print("\nGPU Memory Usage:")
@@ -1137,7 +1214,7 @@ def train_model():
                                   f"{stat['reserved_mb']:.0f}MB reserved")
                     
                     try:
-                        # Training phase
+                        # Training phase with class balance monitoring
                         train_loss = train_one_epoch(
                             model, train_loader, criterion,
                             optimizer, scheduler, device
@@ -1148,28 +1225,33 @@ def train_model():
                             model, valid_loader, criterion, device
                         )
                         
-                        # Update history
+                        # Update history with class distribution
                         fold_history['train_loss'].append(train_loss)
                         fold_history['valid_loss'].append(valid_loss)
                         fold_history['valid_score'].append(valid_score)
+                        fold_history['class_distribution'].append(
+                            train_dataset.get_class_distribution()
+                        )
                         
-                        # Save batch metrics
+                        # Save batch metrics with class balance info
                         monitor.save_batch_metrics(
                             epoch, 
                             {
                                 'train_loss': train_loss,
                                 'valid_loss': valid_loss,
-                                'valid_score': valid_score
+                                'valid_score': valid_score,
+                                'class_ratio': train_dataset.get_class_ratio()
                             },
                             fold,
                             epoch
                         )
                         
-                        # Print metrics
+                        # Print metrics with class balance info
                         print(
                             f'Train Loss: {train_loss:.4f} '
                             f'Valid Loss: {valid_loss:.4f} '
-                            f'Valid Score: {valid_score:.4f}'
+                            f'Valid Score: {valid_score:.4f} '
+                            f'Class Ratio: {train_dataset.get_class_ratio():.2f}'
                         )
                         
                         # Save best model and visualize
@@ -1177,7 +1259,7 @@ def train_model():
                             best_score = valid_score
                             best_loss = valid_loss
                             
-                            # Save model
+                            # Save model with class balance info
                             torch.save(
                                 {
                                     'epoch': epoch,
@@ -1186,7 +1268,8 @@ def train_model():
                                     'scheduler_state_dict': scheduler.state_dict(),
                                     'best_score': best_score,
                                     'best_loss': best_loss,
-                                    'fold_history': fold_history
+                                    'fold_history': fold_history,
+                                    'class_weights': train_dataset.class_weights.cpu().numpy()
                                 },
                                 CFG.model_dir / f'fold{fold}_best.pth'
                             )
@@ -1217,12 +1300,16 @@ def train_model():
                 best_scores.append({
                     'fold': fold,
                     'score': best_score,
-                    'loss': best_loss
+                    'loss': best_loss,
+                    'final_class_ratio': train_dataset.get_class_ratio()
                 })
                 
-                # Save validation predictions
+                # Save validation predictions with class balance metrics
                 valid_preds = model(valid_dataset[::]['images'].to(device)).sigmoid().cpu().numpy()
-                monitor.save_fold_predictions(fold, valid_preds, valid_dataset[::]['labels'].numpy(), valid_fold)
+                monitor.save_fold_predictions(
+                    fold, valid_preds, valid_dataset[::]['labels'].numpy(), 
+                    valid_fold, class_weights=train_dataset.class_weights.cpu().numpy()
+                )
                 
             except Exception as e:
                 print(f"Error in fold {fold + 1}: {str(e)}")
@@ -1241,20 +1328,21 @@ def train_model():
                 except Exception as e:
                     print(f"Error in cleanup: {str(e)}")
         
-        # Print final results
+        # Print final results with class balance metrics
         print("\nTraining completed!")
         print("\nBest scores per fold:")
         for score_dict in best_scores:
             print(
                 f"Fold {score_dict['fold'] + 1}: "
                 f"Score = {score_dict['score']:.4f}, "
-                f"Loss = {score_dict['loss']:.4f}"
+                f"Loss = {score_dict['loss']:.4f}, "
+                f"Class Ratio = {score_dict['final_class_ratio']:.2f}"
             )
         
         print(f"\nMean CV score: {np.mean(fold_scores):.4f}")
         print(f"Std CV score: {np.std(fold_scores):.4f}")
         
-        # Analyze overall predictions
+        # Analyze overall predictions with class balance consideration
         for fold in range(CFG.num_folds):
             pred_path = monitor.monitor_dir / f'fold{fold}_predictions.csv'
             if pred_path.exists():
@@ -1382,6 +1470,30 @@ def process_test_data():
         num_samples=None if not CFG.debug else 100
     )
     print(f"Test data processing completed. Processed: {processed_count}, Failed: {failed_count}")
+
+def get_balanced_dataloader(dataset, batch_size, shuffle=True, is_train=True):
+    """Creates DataLoader with balanced sampling if needed"""
+    if is_train:
+        sampler = dataset.get_sampler()
+        return DataLoader(
+            dataset,
+            batch_size=batch_size,
+            sampler=sampler,  # Use sampler instead of shuffle
+            num_workers=CFG.num_workers,
+            pin_memory=CFG.pin_memory,
+            drop_last=is_train,
+            persistent_workers=CFG.persistent_workers
+        )
+    else:
+        return DataLoader(
+            dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            num_workers=CFG.num_workers,
+            pin_memory=CFG.pin_memory,
+            drop_last=is_train,
+            persistent_workers=CFG.persistent_workers
+        )
 
 def save_run_config(cfg, run_dir):
     """Save training configuration and run info"""
