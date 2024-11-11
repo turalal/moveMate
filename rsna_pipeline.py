@@ -123,10 +123,8 @@ class CFG:
 class BalancedRSNADataset(Dataset):
     """Enhanced Dataset with class balancing capabilities"""
     def __init__(self, df, transform=None, is_train=True):
-        self.df = df
-        self.transform = transform
-        self.is_train = is_train
-        self.image_cache = {}
+        # Initialize parent RSNADataset
+        super().__init__(df, transform, is_train)
         
         # Calculate class weights if training
         if is_train:
@@ -141,7 +139,7 @@ class BalancedRSNADataset(Dataset):
             self.sample_weights = [
                 self.class_weights[int(label)] for label in df['cancer']
             ]
-        
+             
     def get_sampler(self):
         """Returns WeightedRandomSampler for balanced batches"""
         if self.is_train:
