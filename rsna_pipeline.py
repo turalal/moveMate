@@ -923,9 +923,8 @@ class TrainingMonitor:
             f.write(f"Final Train Loss: {fold_history['train_loss'][-1]:.4f}\n")
             f.write(f"Final Valid Loss: {fold_history['valid_loss'][-1]:.4f}\n")
             f.write("-" * 50 + "\n")
-    
-    def save_fold_predictions(self, fold, valid_predictions, valid_targets, fold_df):
-        """Save fold predictions for analysis"""
+     
+    def save_fold_predictions(self, fold, valid_predictions, valid_targets, fold_df, class_weights=None):
         pred_df = pd.DataFrame({
             'patient_id': fold_df['patient_id'],
             'image_id': fold_df['image_id'],
@@ -933,6 +932,9 @@ class TrainingMonitor:
             'prediction': valid_predictions,
             'fold': fold
         })
+        if class_weights is not None:
+            pred_df['class_weight_0'] = class_weights[0]
+            pred_df['class_weight_1'] = class_weights[1]
         
         pred_path = self.monitor_dir / f'fold{fold}_predictions.csv'
         pred_df.to_csv(pred_path, index=False)
