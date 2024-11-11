@@ -120,7 +120,7 @@ class CFG:
         ToTensorV2(),
     ]
 
-class BalancedRSNADataset(Dataset):
+class BalancedRSNADataset(RSNADataset):
     """Enhanced Dataset with class balancing capabilities"""
     def __init__(self, df, transform=None, is_train=True):
         # Initialize parent RSNADataset
