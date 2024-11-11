@@ -120,11 +120,12 @@ class CFG:
         ToTensorV2(),
     ]
 
-class BalancedRSNADataset(RSNADataset):
-    """Enhanced Dataset with class balancing capabilities"""
+class BalancedRSNADataset(Dataset):  # Changed to inherit from Dataset
     def __init__(self, df, transform=None, is_train=True):
-        # Initialize parent RSNADataset
-        super().__init__(df, transform, is_train)
+        self.df = df
+        self.transform = transform
+        self.is_train = is_train
+        self.image_cache = {}  # Add image caching
         
         # Calculate class weights if training
         if is_train:
@@ -139,6 +140,28 @@ class BalancedRSNADataset(RSNADataset):
             self.sample_weights = [
                 self.class_weights[int(label)] for label in df['cancer']
             ]
+    
+    def _load_image(self, img_path):
+        """Load image with caching and error handling"""
+        if img_path in self.image_cache:
+            return self.image_cache[img_path].copy()
+            
+        try:
+            img = cv2.imread(str(img_path))
+            if img is not None:
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                # Cache image if not in training mode (to save memory)
+                if not self.is_train:
+                    self.image_cache[img_path] = img.copy()
+                return img
+        except Exception as e:
+            print(f"Error loading image {img_path}: {str(e)}")
+        
+        return None
+    
+    def _get_blank_image(self):
+        """Create blank image with proper dimensions"""
+        return np.zeros((CFG.target_size[0], CFG.target_size[1], 3), dtype=np.uint8)
              
     def get_sampler(self):
         """Returns WeightedRandomSampler for balanced batches"""
@@ -185,6 +208,23 @@ class BalancedRSNADataset(RSNADataset):
         """Calculate ratio between classes"""
         dist = self.get_class_distribution()
         return dist[0] / dist[1] if 1 in dist else float('inf')
+
+    def get_all_images(self):
+        """Get all images as a tensor"""
+        images = []
+        for idx in range(len(self)):
+            if self.is_train:
+                img, _ = self[idx]
+            else:
+                img = self[idx]
+            images.append(img)
+        return torch.stack(images)
+    
+    def get_all_labels(self):
+        """Get all labels as a tensor"""
+        if not self.is_train:
+            return None
+        return torch.tensor(self.df['cancer'].values, dtype=torch.float32)
 
 class FocalLoss(nn.Module):
     """Focal Loss for dealing with class imbalance"""
@@ -1073,6 +1113,27 @@ def get_dataloader(dataset, batch_size, shuffle=True, is_train=True):
             pin_memory=False
         )
 
+def get_predictions(model, dataset, device, batch_size=32):
+    """Get predictions using batched inference"""
+    dataloader = DataLoader(
+        dataset, 
+        batch_size=batch_size, 
+        shuffle=False,
+        num_workers=0,
+        pin_memory=True
+    )
+    predictions = []
+    model.eval()
+    with torch.no_grad():
+        for images in tqdm(dataloader, desc='Getting predictions'):
+            if isinstance(images, (tuple, list)):
+                images = images[0]
+            images = images.to(device)
+            with autocast():
+                preds = model(images).sigmoid().cpu().numpy()
+            predictions.append(preds)
+    return np.concatenate(predictions)
+
 def train_model():
     """Main training loop with enhanced error handling, monitoring and class balance handling"""
     # Set seeds for reproducibility
@@ -1305,10 +1366,14 @@ def train_model():
                 })
                 
                 # Save validation predictions with class balance metrics
-                valid_preds = model(valid_dataset[::]['images'].to(device)).sigmoid().cpu().numpy()
+                valid_preds = get_predictions(model, valid_dataset, device, CFG.valid_batch_size)
+                valid_labels = valid_dataset.get_all_labels()
                 monitor.save_fold_predictions(
-                    fold, valid_preds, valid_dataset[::]['labels'].numpy(), 
-                    valid_fold, class_weights=train_dataset.class_weights.cpu().numpy()
+                    fold, 
+                    valid_preds, 
+                    valid_labels, 
+                    valid_fold, 
+                    class_weights=train_dataset.class_weights.cpu().numpy()
                 )
                 
             except Exception as e:
