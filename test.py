@@ -85,20 +85,7 @@ def get_balanced_dataloader(dataset, batch_size, shuffle=True, is_train=True):
             persistent_workers=CFG.persistent_workers
         )
 
-class FocalLoss(nn.Module):
-    """Focal Loss for dealing with class imbalance"""
-    def __init__(self, alpha=0.25, gamma=2.0):
-        super().__init__()
-        self.alpha = alpha
-        self.gamma = gamma
-        
-    def forward(self, inputs, targets):
-        bce_loss = F.binary_cross_entropy_with_logits(
-            inputs, targets, reduction='none'
-        )
-        pt = torch.exp(-bce_loss)
-        focal_loss = self.alpha * (1-pt)**self.gamma * bce_loss
-        return focal_loss.mean()
+
 
 def train_model():
     """Updated training function with balanced sampling and focal loss"""
@@ -143,13 +130,4 @@ def train_model():
             criterion = FocalLoss(alpha=0.25, gamma=2.0)
             
             # Rest of the training loop remains the same...
-
-# Update CFG class with additional parameters
-class CFG:
-    # ... (previous parameters remain the same)
     
-    # Class balancing parameters
-    focal_loss_alpha = 0.25
-    focal_loss_gamma = 2.0
-    use_class_weights = True
-    oversample_minority = True
