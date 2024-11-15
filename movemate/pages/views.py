@@ -1,16 +1,20 @@
 # pages/views.py
-from rest_framework import generics, status, viewsets, filters
+from rest_framework import generics, status, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework.filters import SearchFilter, OrderingFilter
+
 from django.shortcuts import get_object_or_404
 from django.core.mail import send_mail, BadHeaderError
 from django.template.loader import render_to_string
 from django.conf import settings
 from django.utils.html import strip_tags
 from django.db.models import Count
-from django_filters import rest_framework as filters
 from django.utils import timezone
+
+from django_filters import rest_framework as django_filters
+
 from .models import Contact, Service, BlogPost, BlogCategory, Comment
 from .serializers import (
     ContactSerializer, 
@@ -19,9 +23,31 @@ from .serializers import (
     BlogCategorySerializer,
     CommentSerializer
 )
+
 import logging
 
 logger = logging.getLogger(__name__)
+
+class ServiceFilter(django_filters.FilterSet):
+    class Meta:
+        model = Service
+        fields = {
+            'title': ['icontains'],
+            'created_at': ['gte', 'lte'],
+            'is_active': ['exact'],
+        }
+
+class BlogPostFilter(django_filters.FilterSet):  # Changed from filters.FilterSet
+    class Meta:
+        model = BlogPost
+        fields = {
+            'title': ['icontains'],
+            'category': ['exact'],
+            'created_at': ['gte', 'lte'],
+            'author': ['exact'],
+            'status': ['exact'],
+        }
+
 
 class ContactView(generics.CreateAPIView):
     queryset = Contact.objects.all()
@@ -100,31 +126,12 @@ class ContactView(generics.CreateAPIView):
             logger.error(f"Error sending confirmation email: {str(e)}")
             raise
 
-class ServiceFilter(filters.FilterSet):
-    class Meta:
-        model = Service
-        fields = {
-            'title': ['icontains'],
-            'created_at': ['gte', 'lte']
-        }
-
-class BlogPostFilter(filters.FilterSet):
-    class Meta:
-        model = BlogPost
-        fields = {
-            'title': ['icontains'],
-            'category': ['exact'],
-            'status': ['exact'],
-            'created_at': ['gte', 'lte'],
-            'author': ['exact'],
-        }
-
 class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.filter(is_active=True)
     serializer_class = ServiceSerializer
     permission_classes = [AllowAny]
     lookup_field = 'slug'
-    filter_backends = [filters.DjangoFilterBackend, SearchFilter, filters.OrderingFilter]
+    filter_backends = [django_filters.DjangoFilterBackend, SearchFilter, OrderingFilter]  # Updated
     filterset_class = ServiceFilter
     search_fields = ['title', 'description']
     ordering_fields = ['created_at', 'title']
@@ -142,7 +149,7 @@ class BlogPostViewSet(viewsets.ModelViewSet):
     serializer_class = BlogPostSerializer
     permission_classes = [AllowAny]
     lookup_field = 'slug'
-    filter_backends = [filters.DjangoFilterBackend, SearchFilter, filters.OrderingFilter]
+    filter_backends = [django_filters.DjangoFilterBackend, SearchFilter, OrderingFilter]  # Updated
     filterset_class = BlogPostFilter
     search_fields = ['title', 'content']
     ordering_fields = ['created_at', 'views', 'title']
@@ -163,7 +170,7 @@ class BlogPostViewSet(viewsets.ModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [filters.DjangoFilterBackend, filters.OrderingFilter]
+    filter_backends = [django_filters.DjangoFilterBackend, OrderingFilter]  # Updated
     ordering_fields = ['created_at']
     ordering = ['-created_at']
 
