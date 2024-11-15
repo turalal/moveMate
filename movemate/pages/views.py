@@ -4,6 +4,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.throttling import AnonRateThrottle
 
 from django.shortcuts import get_object_or_404
 from django.core.mail import send_mail, BadHeaderError
@@ -50,6 +51,8 @@ class BlogPostFilter(django_filters.FilterSet):  # Changed from filters.FilterSe
 
 
 class ContactView(generics.CreateAPIView):
+    throttle_classes = [AnonRateThrottle]
+    throttle_scope = 'contact'
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
     permission_classes = [AllowAny]

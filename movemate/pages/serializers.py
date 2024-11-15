@@ -2,14 +2,21 @@
 from rest_framework import serializers
 from .models import Contact, Service, BlogPost, BlogCategory, Comment
 
+# In your ContactSerializer:
 class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contact
-        fields = ['name', 'email', 'message', 'subject']
-        extra_kwargs = {
-            'subject': {'default': 'No subject'}
-        }
+        fields = ('name', 'email', 'subject', 'message')
 
+    def validate_email(self, value):
+        if not value:
+            raise serializers.ValidationError("Email is required")
+        return value
+
+    def validate_name(self, value):
+        if not value:
+            raise serializers.ValidationError("Name is required")
+        return value
 class ServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
