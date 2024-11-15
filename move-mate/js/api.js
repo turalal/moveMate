@@ -1,5 +1,5 @@
 // js/api.js
-const API_URL = 'http://localhost:8000/api';
+const API_URL = 'https://movemate-dbqo.onrender.com/api';
 
 const api = {
     login: (credentials) => 
