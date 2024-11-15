@@ -1,0 +1,221 @@
+/*** Color Variables for MoveMate ***/
+:root {
+    --bs-primary: hsl(205, 22%, 45%); /* Main color (dark blue) */
+    --bs-secondary: hwb(0 7% 8%); /* Secondary color (orange) */
+    --bs-light: #f4f4f4; /* Light background color */
+    --bs-white: #ffffff; /* White color */
+}
+
+/*** Spinner Start ***/
+#spinner {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .5s ease-out, visibility 0s linear .5s;
+    z-index: 99999;
+    background: rgba(0, 51, 102, 0.8); /* Dark blue overlay */
+}
+
+#spinner.show {
+    transition: opacity .5s ease-out, visibility 0s linear 0s;
+    visibility: visible;
+    opacity: 1;
+}
+/*** Spinner End ***/
+
+/*** Back to Top Button ***/
+.back-to-top {
+    position: fixed;
+    right: 30px;
+    bottom: 30px;
+    display: flex;
+    width: 45px;
+    height: 45px;
+    align-items: center;
+    justify-content: center;
+    transition: 0.5s;
+    z-index: 99;
+}
+
+/*** Button Styles ***/
+.btn {
+    font-weight: 600;
+    transition: .5s;
+}
+
+.btn-square {
+    width: 32px;
+    height: 32px;
+}
+
+.btn-sm-square {
+    width: 34px;
+    height: 34px;
+}
+
+.btn-md-square {
+    width: 44px;
+    height: 44px;
+}
+
+.btn-lg-square {
+    width: 56px;
+    height: 56px;
+}
+
+.btn-square,
+.btn-sm-square,
+.btn-md-square,
+.btn-lg-square {
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: normal;
+    border-radius: 50%;
+}
+
+.btn.btn-primary {
+    background: var(--bs-secondary) !important;
+    color: var(--bs-white) !important;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 400;
+    transition: 0.5s;
+}
+
+.btn.btn-primary:hover {
+    background: var(--bs-primary) !important;
+    color: var(--bs-secondary);
+    border: 1px solid var(--bs-secondary);
+}
+
+.btn.btn-secondary {
+    background: transparent;
+    color: var(--bs-secondary);
+    font-family: 'Poppins', sans-serif;
+    font-weight: 400;
+    border: none;
+    transition: 0.5s;
+}
+
+.btn.btn-secondary:hover {
+    color: var(--bs-primary) !important;
+}
+
+/*** Section Title Styling ***/
+.section-title {
+    max-width: 900px;
+    text-align: center;
+    margin: 0 auto;
+    padding: 0 10px;
+}
+
+.section-title .sub-style {
+    position: relative;
+    display: inline-block;
+    text-transform: uppercase;
+    color: var(--bs-primary);
+}
+
+.section-title .sub-style::before,
+.section-title .sub-style::after,
+.sub-title::before,
+.sub-title::after {
+    content: "";
+    position: absolute;
+    border: 1px solid;
+}
+
+/* Adjust the pseudo-elements for smaller screens */
+.section-title .sub-style::before,
+.section-title .sub-style::after,
+.sub-title::before,
+.sub-title::after {
+    width: 100px;
+}
+
+/*** Topbar and Navbar Adjustments ***/
+.fixed-top .container {
+    transition: 0.5s;
+}
+
+.topbar {
+    padding: 2px 10px 2px 20px;
+    background: var(--bs-primary) !important;
+}
+
+.topbar a, .topbar a i {
+    transition: 0.5s;
+}
+
+.topbar a:hover, .topbar a i:hover {
+    color: var(--bs-secondary) !important;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+    /* Back to Top Button */
+    .back-to-top {
+        right: 15px;
+        bottom: 15px;
+        width: 35px;
+        height: 35px;
+    }
+
+    /* Button Sizes */
+    .btn-square, .btn-sm-square, .btn-md-square, .btn-lg-square {
+        width: 30px;
+        height: 30px;
+    }
+
+    /* Section Title */
+    .section-title {
+        padding: 0 20px;
+    }
+
+    /* Adjust section pseudo-elements */
+    .section-title .sub-style::before,
+    .section-title .sub-style::after,
+    .sub-title::before,
+    .sub-title::after {
+        width: 70px;
+    }
+
+    /* Topbar Padding */
+    .topbar {
+        padding: 5px;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Further adjust Back to Top Button for mobile */
+    .back-to-top {
+        width: 30px;
+        height: 30px;
+        right: 10px;
+        bottom: 10px;
+    }
+
+    /* Section Titles */
+    .section-title .sub-style::before,
+    .section-title .sub-style::after,
+    .sub-title::before,
+    .sub-title::after {
+        width: 50px;
+    }
+
+    /* Button Sizes */
+    .btn-square, .btn-sm-square, .btn-md-square, .btn-lg-square {
+        width: 25px;
+        height: 25px;
+    }
+
+    /* Adjust padding for smaller devices */
+    .section-title {
+        padding: 0 15px;
+    }
+
+    /* Reduce topbar padding */
+    .topbar {
+        padding: 3px;
+    }
+}
