@@ -1,14 +1,26 @@
 # pages/urls.py
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from . import views
 
+# Create a router and register our viewsets with it
+router = DefaultRouter()
+router.register(r'services', views.ServiceViewSet, basename='service')
+router.register(r'blog/categories', views.BlogCategoryViewSet, basename='category')
+router.register(r'blog/posts', views.BlogPostViewSet, basename='post')
+router.register(
+    r'blog/posts/(?P<post_slug>[\w-]+)/comments',
+    views.CommentViewSet,
+    basename='comment'
+)
+
+# The API URLs are now determined automatically by the router
 urlpatterns = [
-    path('services/', views.ServiceListView.as_view(), name='service-list'),
-    path('services/<int:pk>/', views.ServiceDetailView.as_view(), name='service-detail'),
-    path('blog/categories/', views.BlogCategoryListView.as_view(), name='category-list'),
-    path('blog/posts/', views.BlogPostListView.as_view(), name='post-list'),
-    path('blog/posts/<slug:slug>/', views.BlogPostDetailView.as_view(), name='post-detail'),
-    path('blog/posts/<slug:post_slug>/comments/', views.CommentCreateView.as_view(), name='comment-create'),
-    path('blog/comments/<int:pk>/', views.CommentDeleteView.as_view(), name='comment-delete'),
+    path('', include(router.urls)),
     path('contact/', views.ContactView.as_view(), name='contact'),
 ]
+
+# Optional: Add additional custom URLs if needed
+# urlpatterns += [
+#     path('custom-endpoint/', views.CustomView.as_view(), name='custom'),
+# ]
