@@ -1,4 +1,4 @@
-<?php
+<!-- <?php
 // signup_process.php
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Database configuration
@@ -36,4 +36,4 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Close the database connection
     $conn->close();
 }
-?>
+?> -->

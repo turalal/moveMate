@@ -1,4 +1,4 @@
-<?php
+<!-- <?php
 // login_process.php
 session_start();
 
@@ -47,4 +47,4 @@ if ($result->num_rows > 0) {
 
 // Close the database connection
 $conn->close();
-?>
+?> -->
