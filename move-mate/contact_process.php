@@ -1,4 +1,4 @@
-<?php
+<!-- <?php
 // contact_process.php
 session_start();
 
@@ -48,4 +48,4 @@ if (mail($to, $subject, $body, $headers)) {
 // Close the database connection
 $conn->close();
 ob_end_flush(); // Output buffering bitir
-?>
+?> -->
