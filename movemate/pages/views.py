@@ -112,47 +112,56 @@ class ContactView(generics.CreateAPIView):
 
     def send_notification_email(self, contact):
         try:
-            subject = f'New Contact Form Submission - {contact.subject}'
-            html_message = render_to_string('emails/contact_notification.html', {
-                'name': contact.name,
-                'email': contact.email,
-                'subject': contact.subject,
-                'message': contact.message,
-            })
-            plain_message = strip_tags(html_message)
-
-            send_mail(
-                subject=subject,
-                message=plain_message,
+            # Create email message
+            email = EmailMessage(
+                subject=f'New Contact Form Submission - {contact.subject or "No subject"}',
+                body=render_to_string('emails/contact_notification.html', {
+                    'name': contact.name,
+                    'email': contact.email,
+                    'subject': contact.subject,
+                    'message': contact.message,
+                }),
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[settings.SALES_EMAIL],
-                html_message=html_message,
-                fail_silently=True,
+                to=[settings.SALES_EMAIL],
+                reply_to=[contact.email],
+                headers={
+                    'X-Auto-Response-Suppress': 'OOF, DR, RN, NRN, AutoReply',
+                    'Auto-Submitted': 'auto-generated',
+                    'X-Priority': '3',
+                },
             )
+            email.content_subtype = "html"
+            email.send(fail_silently=False)
+            logger.info(f"Notification email sent to {settings.SALES_EMAIL}")
         except Exception as e:
             logger.error(f"Error sending notification email: {str(e)}")
             raise
 
     def send_confirmation_email(self, contact):
         try:
-            subject = 'Thank you for contacting MoveMate'
-            html_message = render_to_string('emails/contact_confirmation.html', {
-                'name': contact.name,
-            })
-            plain_message = strip_tags(html_message)
-
-            send_mail(
-                subject=subject,
-                message=plain_message,
+            # Create email message
+            email = EmailMessage(
+                subject='Thank you for contacting MoveMate',
+                body=render_to_string('emails/contact_confirmation.html', {
+                    'name': contact.name,
+                }),
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[contact.email],
-                html_message=html_message,
-                fail_silently=True,
+                to=[contact.email],
+                reply_to=[settings.SALES_EMAIL],
+                headers={
+                    'X-Auto-Response-Suppress': 'OOF, DR, RN, NRN, AutoReply',
+                    'Auto-Submitted': 'auto-generated',
+                    'X-Priority': '3',
+                    'Precedence': 'bulk',
+                },
             )
+            email.content_subtype = "html"
+            email.send(fail_silently=False)
+            logger.info(f"Confirmation email sent to {contact.email}")
         except Exception as e:
             logger.error(f"Error sending confirmation email: {str(e)}")
             raise
-
+    
 class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.filter(is_active=True)
     serializer_class = ServiceSerializer

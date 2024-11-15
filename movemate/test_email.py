@@ -15,7 +15,7 @@ def test_smtp_connection(max_retries=3, timeout=30):
     port = 587
     sender_email = "sales@movemate.me"
     password = os.getenv('EMAIL_HOST_PASSWORD')
-    receiver_email = "ismetsemedov@live.ru"
+    receiver_email = "ismetsemedov@gmail.com"
 
     # Create message
     message = MIMEMultipart()
