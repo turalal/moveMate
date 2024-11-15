@@ -13,6 +13,7 @@ from django.conf import settings
 from django.utils.html import strip_tags
 from django.db.models import Count
 from django.utils import timezone
+from django.core.mail import EmailMessage
 
 from django_filters import rest_framework as django_filters
 
@@ -51,8 +52,6 @@ class BlogPostFilter(django_filters.FilterSet):  # Changed from filters.FilterSe
 
 
 class ContactView(generics.CreateAPIView):
-    throttle_classes = [AnonRateThrottle]
-    throttle_scope = 'contact'
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
     permission_classes = [AllowAny]
@@ -63,18 +62,43 @@ class ContactView(generics.CreateAPIView):
         
         try:
             contact = self.perform_create(serializer)
-            self.send_notification_email(contact)
-            self.send_confirmation_email(contact)
+            
+            # Send notification email
+            logger.info(f"Sending notification email to {settings.SALES_EMAIL}")
+            notification_email = EmailMessage(
+                subject=f'New Contact Form Submission - {contact.subject or "No subject"}',
+                body=render_to_string('emails/contact_notification.html', {
+                    'name': contact.name,
+                    'email': contact.email,
+                    'subject': contact.subject,
+                    'message': contact.message,
+                }),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[settings.SALES_EMAIL],
+                reply_to=[contact.email]
+            )
+            notification_email.content_subtype = 'html'
+            notification_email.send()
+            logger.info("Notification email sent successfully")
+            
+            # Send confirmation email
+            logger.info(f"Sending confirmation email to {contact.email}")
+            confirmation_email = EmailMessage(
+                subject='Thank you for contacting MoveMate',
+                body=render_to_string('emails/contact_confirmation.html', {
+                    'name': contact.name,
+                }),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[contact.email],
+                reply_to=[settings.SALES_EMAIL]
+            )
+            confirmation_email.content_subtype = 'html'
+            confirmation_email.send()
+            logger.info("Confirmation email sent successfully")
             
             return Response(
                 {"message": "Message sent successfully"},
                 status=status.HTTP_201_CREATED
-            )
-        except BadHeaderError:
-            logger.error("Invalid header found in email submission")
-            return Response(
-                {"error": "Invalid header found in email"},
-                status=status.HTTP_400_BAD_REQUEST
             )
         except Exception as e:
             logger.error(f"Error in contact form submission: {str(e)}")
