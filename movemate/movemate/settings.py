@@ -205,8 +205,6 @@ if not DEBUG:
     X_FRAME_OPTIONS = 'DENY'
     SECURE_REFERRER_POLICY = 'same-origin'
     
-    # Serve static files with WhiteNoise
-    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
 
 # Admin configuration
 ADMIN_SITE_HEADER = 'MoveMate Administration'
@@ -301,6 +299,24 @@ else:
             },
         },
     }
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header'
+        }
+    },
+    'USE_SESSION_AUTH': False,
+    'PERSIST_AUTH': True,
+    'REFETCH_SCHEMA_WITH_AUTH': True,
+    'REFETCH_SCHEMA_ON_LOGOUT': True,
+}
+
+REDOC_SETTINGS = {
+    'LAZY_RENDERING': True,
+}
 
 # Error reporting
 ADMINS = [('Admin', 'sales@movemate.me')]
