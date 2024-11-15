@@ -105,8 +105,7 @@ class ServiceFilter(filters.FilterSet):
         model = Service
         fields = {
             'title': ['icontains'],
-            'created_at': ['gte', 'lte'],
-            'is_active': ['exact'],
+            'created_at': ['gte', 'lte']
         }
 
 class BlogPostFilter(filters.FilterSet):
