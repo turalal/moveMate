@@ -5,7 +5,10 @@ from .models import Contact, Service, BlogPost, BlogCategory, Comment
 class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contact
-        fields = '__all__'
+        fields = ['name', 'email', 'message', 'subject']
+        extra_kwargs = {
+            'subject': {'default': 'No subject'}
+        }
 
 class ServiceSerializer(serializers.ModelSerializer):
     class Meta:
