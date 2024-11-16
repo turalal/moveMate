@@ -2,7 +2,8 @@
 from rest_framework import serializers
 from .models import Contact, Service, BlogPost, BlogCategory, Comment
 from .validators import EmailDomainValidator
-
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 
 class ContactSerializer(serializers.ModelSerializer):
     class Meta:
@@ -12,12 +13,13 @@ class ContactSerializer(serializers.ModelSerializer):
     def validate_email(self, value):
         if not value:
             raise serializers.ValidationError("Email is required")
-            
-        # Validate email domain
-        EmailDomainValidator.validate_domain(value)
+        try:
+            # Basic email validation
+            validate_email(value)
+            return value.lower()
+        except ValidationError:
+            raise serializers.ValidationError("Invalid email format")
         
-        return value.lower()  # Normalize email to lowercase
-    
     def validate_name(self, value):
         if not value:
             raise serializers.ValidationError("Name is required")

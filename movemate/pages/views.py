@@ -5,7 +5,6 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.throttling import AnonRateThrottle
-
 from django.shortcuts import get_object_or_404
 from django.core.mail import send_mail, BadHeaderError
 from django.template.loader import render_to_string
@@ -14,13 +13,10 @@ from django.utils.html import strip_tags
 from django.db.models import Count
 from django.utils import timezone
 from django.core.mail import EmailMessage
-
 from django_filters import rest_framework as django_filters
-
 from .serializers import ContactSerializer
 from .services import EmailSecurityService
 from .validators import EmailThrottler
-
 from .models import Contact, Service, BlogPost, BlogCategory, Comment
 from .serializers import (
     ContactSerializer, 
@@ -56,33 +52,13 @@ class BlogPostFilter(django_filters.FilterSet):
             'status': ['exact'],
         }
 
-
 class ContactView(generics.CreateAPIView):
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
     permission_classes = [AllowAny]
-    throttle_classes = [EmailThrottler]
 
     def create(self, request, *args, **kwargs):
         try:
-            # Get client IP
-            ip_address = self.get_client_ip(request)
-            email = request.data.get('email', '')
-            
-            # Check submission history
-            is_allowed, message = EmailSecurityService.check_submission_history(
-                email,
-                ip_address
-            )
-            
-            if not is_allowed:
-                logger.warning(f"Rate limit exceeded for IP: {ip_address}, email: {email}")
-                return Response(
-                    {"error": message},
-                    status=status.HTTP_429_TOO_MANY_REQUESTS
-                )
-            
-            # Validate and create contact
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             contact = self.perform_create(serializer)
@@ -99,8 +75,6 @@ class ContactView(generics.CreateAPIView):
                 logger.info("Confirmation email sent successfully")
             except Exception as email_error:
                 logger.error(f"Error sending emails: {str(email_error)}")
-                # Note: We continue even if email sending fails
-                # The contact is already saved in the database
             
             return Response(
                 {"message": "Message sent successfully"},
@@ -116,12 +90,6 @@ class ContactView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         return serializer.save()
-
-    def get_client_ip(self, request):
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            return x_forwarded_for.split(',')[0]
-        return request.META.get('REMOTE_ADDR')
 
     def send_notification_email(self, contact):
         """Send notification email to admin"""
@@ -163,7 +131,14 @@ class ContactView(generics.CreateAPIView):
             },
         )
         email.content_subtype = "html"
-        email.send(fail_silently=False)  
+        email.send(fail_silently=False)
+
+    def get_client_ip(self, request):
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0]
+        return request.META.get('REMOTE_ADDR')
+
 class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.filter(is_active=True)
     serializer_class = ServiceSerializer
