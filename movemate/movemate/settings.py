@@ -114,13 +114,11 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
-        'rest_framework.throttling.ScopedRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': os.getenv('ANON_THROTTLE_RATE', '100/day'),
         'user': os.getenv('USER_THROTTLE_RATE', '1000/day'),
-        'contact_submission': os.getenv('CONTACT_SUBMISSION_RATE', '3/hour'),
-        'email_verification': os.getenv('EMAIL_VERIFICATION_RATE', '5/day'),
+        'contact': os.getenv('CONTACT_SUBMISSION_RATE', '3/hour'),
     },
 }
 

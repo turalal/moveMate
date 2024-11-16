@@ -6,18 +6,12 @@ from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.throttling import AnonRateThrottle
 from django.shortcuts import get_object_or_404
-from django.core.mail import send_mail, BadHeaderError
 from django.template.loader import render_to_string
 from django.conf import settings
-from django.utils.html import strip_tags
+from django.core.cache import cache
 from django.db.models import Count
-from django.utils import timezone
 from django.core.mail import EmailMessage
 from django_filters import rest_framework as django_filters
-from .throttling import EmailThrottle, IPThrottle
-from .serializers import ContactSerializer
-from .services import EmailSecurityService
-from .validators import EmailThrottler
 from .models import Contact, Service, BlogPost, BlogCategory, Comment
 from .serializers import (
     ContactSerializer, 
@@ -26,7 +20,6 @@ from .serializers import (
     BlogCategorySerializer,
     CommentSerializer
 )
-
 import logging
 
 logger = logging.getLogger(__name__)
@@ -53,11 +46,15 @@ class BlogPostFilter(django_filters.FilterSet):
             'status': ['exact'],
         }
 
+class ContactRateThrottle(AnonRateThrottle):
+    rate = '3/h'  # 3 requests per hour
+    scope = 'contact'
+    
 class ContactView(generics.CreateAPIView):
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
     permission_classes = [AllowAny]
-    throttle_classes = [EmailThrottle, IPThrottle]
+    throttle_classes = [ContactRateThrottle]
 
     def create(self, request, *args, **kwargs):
         try:
@@ -78,7 +75,7 @@ class ContactView(generics.CreateAPIView):
             # Set cooldown for this email
             cache.set(email_key, True, 900)  # 15 minutes cooldown
             
-            # Send emails...
+            # Send emails
             try:
                 logger.info(f"Sending notification email to {settings.SALES_EMAIL}")
                 self.send_notification_email(contact)
@@ -101,15 +98,6 @@ class ContactView(generics.CreateAPIView):
                 {"error": "An error occurred while processing your request"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-    def get_throttles(self):
-        """
-        Instantiate and return throttle objects.
-        """
-        return [throttle() for throttle in self.throttle_classes]
-    
-    def perform_create(self, serializer):
-        return serializer.save()
 
     def send_notification_email(self, contact):
         """Send notification email to admin"""
@@ -152,12 +140,6 @@ class ContactView(generics.CreateAPIView):
         )
         email.content_subtype = "html"
         email.send(fail_silently=False)
-
-    def get_client_ip(self, request):
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            return x_forwarded_for.split(',')[0]
-        return request.META.get('REMOTE_ADDR')
 
 class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.filter(is_active=True)
