@@ -60,15 +60,15 @@ class ContactView(generics.CreateAPIView):
         try:
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-            contact = self.perform_create(serializer)
+            contact = serializer.save()
             
             try:
                 logger.info(f"Sending notification email to {settings.SALES_EMAIL}")
-                self.send_notification_email(contact.name, contact.email, contact.message)
+                self.send_notification_email(contact)
                 logger.info("Notification email sent successfully")
                 
                 logger.info(f"Sending confirmation email to {contact.email}")
-                self.send_confirmation_email(contact.name, contact.email)
+                self.send_confirmation_email(contact)
                 logger.info("Confirmation email sent successfully")
             except Exception as email_error:
                 logger.error(f"Error sending emails: {str(email_error)}")
@@ -85,18 +85,18 @@ class ContactView(generics.CreateAPIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    def send_notification_email(self, name, email, message):
+    def send_notification_email(self, contact):
         """Send notification email to admin"""
         email = EmailMessage(
             subject='New Contact Form Submission',
             body=render_to_string('emails/contact_notification.html', {
-                'name': name,
-                'email': email,
-                'message': message,
+                'name': contact.name,
+                'email': contact.email,
+                'message': contact.message,
             }),
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[settings.SALES_EMAIL],
-            reply_to=[email],
+            reply_to=[contact.email],
             headers={
                 'X-Auto-Response-Suppress': 'OOF, DR, RN, NRN, AutoReply',
                 'Auto-Submitted': 'auto-generated',
@@ -106,15 +106,16 @@ class ContactView(generics.CreateAPIView):
         email.content_subtype = "html"
         email.send(fail_silently=False)
 
-    def send_confirmation_email(self, name, email):
+    def send_confirmation_email(self, contact):
         """Send confirmation email to user"""
         email = EmailMessage(
             subject='Thank you for contacting MoveMate',
             body=render_to_string('emails/contact_confirmation.html', {
-                'name': name,
+                'name': contact.name,
+                'email': contact.email,
             }),
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[email],
+            to=[contact.email],
             reply_to=[settings.SALES_EMAIL],
             headers={
                 'X-Auto-Response-Suppress': 'OOF, DR, RN, NRN, AutoReply',
