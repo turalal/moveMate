@@ -16,17 +16,25 @@ class EmailSecurityService:
         ip_count = cache.get(ip_cache_key, 0)
         
         if ip_count >= 10:  # Maximum 10 submissions per IP per day
-            return False, "Too many submissions from this IP address. Please try again tomorrow."
+            return False, "Too many submissions from this IP address. Please try again later."
             
         # Check email-based submissions
         email_cache_key = f'email_address_{email}'
         email_count = cache.get(email_cache_key, 0)
         
         if email_count >= 3:  # Maximum 3 submissions per email per day
-            return False, "Too many submissions from this email address. Please try again tomorrow."
+            return False, "Too many submissions from this email address. Please try again later."
             
         # Update counters
         cache.set(ip_cache_key, ip_count + 1, timeout=86400)  # 24 hours
         cache.set(email_cache_key, email_count + 1, timeout=86400)  # 24 hours
         
         return True, None
+
+    @staticmethod
+    def reset_submission_count(email=None, ip_address=None):
+        """Reset submission count for email and/or IP address."""
+        if email:
+            cache.delete(f'email_address_{email}')
+        if ip_address:
+            cache.delete(f'email_ip_{ip_address}')
