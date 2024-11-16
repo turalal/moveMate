@@ -253,24 +253,49 @@ LOGGING = {
         },
     },
 }
-
 # Cache Configuration
-CACHES = {
-    'default': {
-        'BACKEND': os.getenv('CACHE_BACKEND', 'django.core.cache.backends.locmem.LocMemCache' if DEBUG else 'django_redis.cache.RedisCache'),
-        'LOCATION': os.getenv('REDIS_URL', 'redis://localhost:6379/0'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'SOCKET_CONNECT_TIMEOUT': int(os.getenv('REDIS_SOCKET_CONNECT_TIMEOUT', '5')),
-            'SOCKET_TIMEOUT': int(os.getenv('REDIS_SOCKET_TIMEOUT', '5')),
-            'RETRY_ON_TIMEOUT': os.getenv('REDIS_RETRY_ON_TIMEOUT', 'True').lower() == 'true',
-            'MAX_CONNECTIONS': int(os.getenv('REDIS_MAX_CONNECTIONS', '10')),
-            'PASSWORD': os.getenv('REDIS_PASSWORD'),
-        },
-        'KEY_PREFIX': os.getenv('CACHE_KEY_PREFIX', 'movemate_prod'),
-        'TIMEOUT': int(os.getenv('CACHE_TIMEOUT', '300')),
+if DEBUG:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+            'TIMEOUT': 300,
+            'OPTIONS': {
+                'MAX_ENTRIES': 1000
+            }
+        }
     }
-}
+else:
+    # For production
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',  # Use database cache instead of Redis for now
+            'LOCATION': 'django_cache',
+            'TIMEOUT': 300,
+            'OPTIONS': {
+                'MAX_ENTRIES': 1000,
+            }
+        }
+    }
+
+# Comment out Redis configuration until Redis service is properly set up
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django_redis.cache.RedisCache',
+#         'LOCATION': os.getenv('REDIS_URL', 'redis://localhost:6379/0'),
+#         'OPTIONS': {
+#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+#             'SOCKET_CONNECT_TIMEOUT': int(os.getenv('REDIS_SOCKET_CONNECT_TIMEOUT', '5')),
+#             'SOCKET_TIMEOUT': int(os.getenv('REDIS_SOCKET_TIMEOUT', '5')),
+#             'RETRY_ON_TIMEOUT': os.getenv('REDIS_RETRY_ON_TIMEOUT', 'True').lower() == 'true',
+#             'MAX_CONNECTIONS': int(os.getenv('REDIS_MAX_CONNECTIONS', '10')),
+#             'PASSWORD': os.getenv('REDIS_PASSWORD'),
+#         },
+#         'KEY_PREFIX': os.getenv('CACHE_KEY_PREFIX', 'movemate_prod'),
+#         'TIMEOUT': int(os.getenv('CACHE_TIMEOUT', '300')),
+#     }
+# }
+
 
 # Swagger settings
 SWAGGER_SETTINGS = {

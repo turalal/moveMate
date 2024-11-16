@@ -58,22 +58,9 @@ class ContactView(generics.CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         try:
-            email = request.data.get('email', '').lower()
-            
-            # Check email submission history
-            email_key = f'email_submission_{email}'
-            if cache.get(email_key):
-                return Response(
-                    {"error": "Please wait before submitting another message"},
-                    status=status.HTTP_429_TOO_MANY_REQUESTS
-                )
-            
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             contact = self.perform_create(serializer)
-            
-            # Set cooldown for this email
-            cache.set(email_key, True, 900)  # 15 minutes cooldown
             
             # Send emails
             try:
@@ -88,7 +75,7 @@ class ContactView(generics.CreateAPIView):
                 logger.error(f"Error sending emails: {str(email_error)}")
             
             return Response(
-                {"message": "Message sent successfully. Please wait 15 minutes before sending another message."},
+                {"message": "Message sent successfully"},
                 status=status.HTTP_201_CREATED
             )
             
@@ -98,7 +85,6 @@ class ContactView(generics.CreateAPIView):
                 {"error": "An error occurred while processing your request"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
     def send_notification_email(self, contact):
         """Send notification email to admin"""
         email = EmailMessage(

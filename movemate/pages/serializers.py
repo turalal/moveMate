@@ -13,7 +13,6 @@ class ContactSerializer(serializers.ModelSerializer):
         if not value:
             raise serializers.ValidationError("Email is required")
         try:
-            # Basic email validation
             validate_email(value)
             return value.lower()
         except ValidationError:
