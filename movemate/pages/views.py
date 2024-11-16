@@ -49,7 +49,7 @@ class BlogPostFilter(django_filters.FilterSet):
 class ContactRateThrottle(AnonRateThrottle):
     rate = '3/h'  # 3 requests per hour
     scope = 'contact'
-    
+
 class ContactView(generics.CreateAPIView):
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
@@ -62,14 +62,13 @@ class ContactView(generics.CreateAPIView):
             serializer.is_valid(raise_exception=True)
             contact = self.perform_create(serializer)
             
-            # Send emails
             try:
                 logger.info(f"Sending notification email to {settings.SALES_EMAIL}")
-                self.send_notification_email(contact)
+                self.send_notification_email(contact.name, contact.email, contact.message)
                 logger.info("Notification email sent successfully")
                 
                 logger.info(f"Sending confirmation email to {contact.email}")
-                self.send_confirmation_email(contact)
+                self.send_confirmation_email(contact.name, contact.email)
                 logger.info("Confirmation email sent successfully")
             except Exception as email_error:
                 logger.error(f"Error sending emails: {str(email_error)}")
@@ -85,19 +84,19 @@ class ContactView(generics.CreateAPIView):
                 {"error": "An error occurred while processing your request"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    def send_notification_email(self, contact):
+
+    def send_notification_email(self, name, email, message):
         """Send notification email to admin"""
         email = EmailMessage(
-            subject=f'New Contact Form Submission - {contact.subject or "No subject"}',
+            subject='New Contact Form Submission',
             body=render_to_string('emails/contact_notification.html', {
-                'name': contact.name,
-                'email': contact.email,
-                'subject': contact.subject,
-                'message': contact.message,
+                'name': name,
+                'email': email,
+                'message': message,
             }),
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[settings.SALES_EMAIL],
-            reply_to=[contact.email],
+            reply_to=[email],
             headers={
                 'X-Auto-Response-Suppress': 'OOF, DR, RN, NRN, AutoReply',
                 'Auto-Submitted': 'auto-generated',
@@ -107,15 +106,15 @@ class ContactView(generics.CreateAPIView):
         email.content_subtype = "html"
         email.send(fail_silently=False)
 
-    def send_confirmation_email(self, contact):
+    def send_confirmation_email(self, name, email):
         """Send confirmation email to user"""
         email = EmailMessage(
             subject='Thank you for contacting MoveMate',
             body=render_to_string('emails/contact_confirmation.html', {
-                'name': contact.name,
+                'name': name,
             }),
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[contact.email],
+            to=[email],
             reply_to=[settings.SALES_EMAIL],
             headers={
                 'X-Auto-Response-Suppress': 'OOF, DR, RN, NRN, AutoReply',
