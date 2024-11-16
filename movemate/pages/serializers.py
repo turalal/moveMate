@@ -1,7 +1,6 @@
 # pages/serializers.py
 from rest_framework import serializers
 from .models import Contact, Service, BlogPost, BlogCategory, Comment
-from .validators import EmailDomainValidator
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 
