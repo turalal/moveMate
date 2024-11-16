@@ -14,6 +14,7 @@ from django.db.models import Count
 from django.utils import timezone
 from django.core.mail import EmailMessage
 from django_filters import rest_framework as django_filters
+from .throttling import EmailThrottle, IPThrottle
 from .serializers import ContactSerializer
 from .services import EmailSecurityService
 from .validators import EmailThrottler
@@ -56,20 +57,33 @@ class ContactView(generics.CreateAPIView):
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
     permission_classes = [AllowAny]
+    throttle_classes = [EmailThrottle, IPThrottle]
 
     def create(self, request, *args, **kwargs):
         try:
+            email = request.data.get('email', '').lower()
+            
+            # Check email submission history
+            email_key = f'email_submission_{email}'
+            if cache.get(email_key):
+                return Response(
+                    {"error": "Please wait before submitting another message"},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+            
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             contact = self.perform_create(serializer)
             
-            # Send notification email
+            # Set cooldown for this email
+            cache.set(email_key, True, 900)  # 15 minutes cooldown
+            
+            # Send emails...
             try:
                 logger.info(f"Sending notification email to {settings.SALES_EMAIL}")
                 self.send_notification_email(contact)
                 logger.info("Notification email sent successfully")
                 
-                # Send confirmation email
                 logger.info(f"Sending confirmation email to {contact.email}")
                 self.send_confirmation_email(contact)
                 logger.info("Confirmation email sent successfully")
@@ -77,7 +91,7 @@ class ContactView(generics.CreateAPIView):
                 logger.error(f"Error sending emails: {str(email_error)}")
             
             return Response(
-                {"message": "Message sent successfully"},
+                {"message": "Message sent successfully. Please wait 15 minutes before sending another message."},
                 status=status.HTTP_201_CREATED
             )
             
@@ -88,6 +102,12 @@ class ContactView(generics.CreateAPIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    def get_throttles(self):
+        """
+        Instantiate and return throttle objects.
+        """
+        return [throttle() for throttle in self.throttle_classes]
+    
     def perform_create(self, serializer):
         return serializer.save()
 
