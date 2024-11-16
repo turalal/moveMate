@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contact
-        fields = ('name', 'email', 'subject', 'message')
+        fields = ('name', 'email', 'message')
 
     def validate_email(self, value):
         if not value:
