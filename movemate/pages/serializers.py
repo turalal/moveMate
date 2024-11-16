@@ -1,8 +1,8 @@
 # pages/serializers.py
 from rest_framework import serializers
 from .models import Contact, Service, BlogPost, BlogCategory, Comment
+from .validators import EmailDomainValidator
 
-# In your ContactSerializer:
 class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contact
@@ -11,12 +11,17 @@ class ContactSerializer(serializers.ModelSerializer):
     def validate_email(self, value):
         if not value:
             raise serializers.ValidationError("Email is required")
-        return value
-
+            
+        # Validate email domain
+        EmailDomainValidator.validate_domain(value)
+        
+        return value.lower()  # Normalize email to lowercase
+    
     def validate_name(self, value):
         if not value:
             raise serializers.ValidationError("Name is required")
         return value
+    
 class ServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service

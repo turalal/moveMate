@@ -17,6 +17,10 @@ from django.core.mail import EmailMessage
 
 from django_filters import rest_framework as django_filters
 
+from .serializers import ContactSerializer
+from .services import EmailSecurityService
+from .validators import EmailThrottler
+
 from .models import Contact, Service, BlogPost, BlogCategory, Comment
 from .serializers import (
     ContactSerializer, 
@@ -30,6 +34,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+
 class ServiceFilter(django_filters.FilterSet):
     class Meta:
         model = Service
@@ -39,7 +45,7 @@ class ServiceFilter(django_filters.FilterSet):
             'is_active': ['exact'],
         }
 
-class BlogPostFilter(django_filters.FilterSet):  # Changed from filters.FilterSet
+class BlogPostFilter(django_filters.FilterSet):  
     class Meta:
         model = BlogPost
         fields = {
@@ -55,51 +61,52 @@ class ContactView(generics.CreateAPIView):
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
     permission_classes = [AllowAny]
+    throttle_classes = [EmailThrottler]
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
         try:
+            # Get client IP
+            ip_address = self.get_client_ip(request)
+            email = request.data.get('email', '')
+            
+            # Check submission history
+            is_allowed, message = EmailSecurityService.check_submission_history(
+                email,
+                ip_address
+            )
+            
+            if not is_allowed:
+                logger.warning(f"Rate limit exceeded for IP: {ip_address}, email: {email}")
+                return Response(
+                    {"error": message},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+            
+            # Validate and create contact
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
             contact = self.perform_create(serializer)
             
             # Send notification email
-            logger.info(f"Sending notification email to {settings.SALES_EMAIL}")
-            notification_email = EmailMessage(
-                subject=f'New Contact Form Submission - {contact.subject or "No subject"}',
-                body=render_to_string('emails/contact_notification.html', {
-                    'name': contact.name,
-                    'email': contact.email,
-                    'subject': contact.subject,
-                    'message': contact.message,
-                }),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[settings.SALES_EMAIL],
-                reply_to=[contact.email]
-            )
-            notification_email.content_subtype = 'html'
-            notification_email.send()
-            logger.info("Notification email sent successfully")
-            
-            # Send confirmation email
-            logger.info(f"Sending confirmation email to {contact.email}")
-            confirmation_email = EmailMessage(
-                subject='Thank you for contacting MoveMate',
-                body=render_to_string('emails/contact_confirmation.html', {
-                    'name': contact.name,
-                }),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[contact.email],
-                reply_to=[settings.SALES_EMAIL]
-            )
-            confirmation_email.content_subtype = 'html'
-            confirmation_email.send()
-            logger.info("Confirmation email sent successfully")
+            try:
+                logger.info(f"Sending notification email to {settings.SALES_EMAIL}")
+                self.send_notification_email(contact)
+                logger.info("Notification email sent successfully")
+                
+                # Send confirmation email
+                logger.info(f"Sending confirmation email to {contact.email}")
+                self.send_confirmation_email(contact)
+                logger.info("Confirmation email sent successfully")
+            except Exception as email_error:
+                logger.error(f"Error sending emails: {str(email_error)}")
+                # Note: We continue even if email sending fails
+                # The contact is already saved in the database
             
             return Response(
                 {"message": "Message sent successfully"},
                 status=status.HTTP_201_CREATED
             )
+            
         except Exception as e:
             logger.error(f"Error in contact form submission: {str(e)}")
             return Response(
@@ -110,58 +117,53 @@ class ContactView(generics.CreateAPIView):
     def perform_create(self, serializer):
         return serializer.save()
 
+    def get_client_ip(self, request):
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0]
+        return request.META.get('REMOTE_ADDR')
+
     def send_notification_email(self, contact):
-        try:
-            # Create email message
-            email = EmailMessage(
-                subject=f'New Contact Form Submission - {contact.subject or "No subject"}',
-                body=render_to_string('emails/contact_notification.html', {
-                    'name': contact.name,
-                    'email': contact.email,
-                    'subject': contact.subject,
-                    'message': contact.message,
-                }),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[settings.SALES_EMAIL],
-                reply_to=[contact.email],
-                headers={
-                    'X-Auto-Response-Suppress': 'OOF, DR, RN, NRN, AutoReply',
-                    'Auto-Submitted': 'auto-generated',
-                    'X-Priority': '3',
-                },
-            )
-            email.content_subtype = "html"
-            email.send(fail_silently=False)
-            logger.info(f"Notification email sent to {settings.SALES_EMAIL}")
-        except Exception as e:
-            logger.error(f"Error sending notification email: {str(e)}")
-            raise
+        """Send notification email to admin"""
+        email = EmailMessage(
+            subject=f'New Contact Form Submission - {contact.subject or "No subject"}',
+            body=render_to_string('emails/contact_notification.html', {
+                'name': contact.name,
+                'email': contact.email,
+                'subject': contact.subject,
+                'message': contact.message,
+            }),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[settings.SALES_EMAIL],
+            reply_to=[contact.email],
+            headers={
+                'X-Auto-Response-Suppress': 'OOF, DR, RN, NRN, AutoReply',
+                'Auto-Submitted': 'auto-generated',
+                'X-Priority': '3',
+            },
+        )
+        email.content_subtype = "html"
+        email.send(fail_silently=False)
 
     def send_confirmation_email(self, contact):
-        try:
-            # Create email message
-            email = EmailMessage(
-                subject='Thank you for contacting MoveMate',
-                body=render_to_string('emails/contact_confirmation.html', {
-                    'name': contact.name,
-                }),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[contact.email],
-                reply_to=[settings.SALES_EMAIL],
-                headers={
-                    'X-Auto-Response-Suppress': 'OOF, DR, RN, NRN, AutoReply',
-                    'Auto-Submitted': 'auto-generated',
-                    'X-Priority': '3',
-                    'Precedence': 'bulk',
-                },
-            )
-            email.content_subtype = "html"
-            email.send(fail_silently=False)
-            logger.info(f"Confirmation email sent to {contact.email}")
-        except Exception as e:
-            logger.error(f"Error sending confirmation email: {str(e)}")
-            raise
-    
+        """Send confirmation email to user"""
+        email = EmailMessage(
+            subject='Thank you for contacting MoveMate',
+            body=render_to_string('emails/contact_confirmation.html', {
+                'name': contact.name,
+            }),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[contact.email],
+            reply_to=[settings.SALES_EMAIL],
+            headers={
+                'X-Auto-Response-Suppress': 'OOF, DR, RN, NRN, AutoReply',
+                'Auto-Submitted': 'auto-generated',
+                'X-Priority': '3',
+                'Precedence': 'bulk',
+            },
+        )
+        email.content_subtype = "html"
+        email.send(fail_silently=False)  
 class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.filter(is_active=True)
     serializer_class = ServiceSerializer
