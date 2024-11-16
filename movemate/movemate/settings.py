@@ -18,23 +18,23 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 if not DEBUG:
     # Add security headers
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
-    SECURE_REFERRER_POLICY = 'same-origin'
+    SECURE_BROWSER_XSS_FILTER = os.getenv('SECURE_BROWSER_XSS_FILTER', 'True').lower() == 'true'
+    SECURE_CONTENT_TYPE_NOSNIFF = os.getenv('SECURE_CONTENT_TYPE_NOSNIFF', 'True').lower() == 'true'
+    X_FRAME_OPTIONS = os.getenv('X_FRAME_OPTIONS', 'DENY')
+    SECURE_REFERRER_POLICY = os.getenv('SECURE_REFERRER_POLICY', 'same-origin')
     
     # Session security
-    SESSION_COOKIE_AGE = 3600  # 1 hour
-    SESSION_SAVE_EVERY_REQUEST = True
-    SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    CSRF_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_AGE = int(os.getenv('SESSION_COOKIE_AGE', '3600'))  # 1 hour
+    SESSION_SAVE_EVERY_REQUEST = os.getenv('SESSION_SAVE_EVERY_REQUEST', 'True').lower() == 'true'
+    SESSION_EXPIRE_AT_BROWSER_CLOSE = os.getenv('SESSION_EXPIRE_AT_BROWSER_CLOSE', 'True').lower() == 'true'
+    SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
+    CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'True').lower() == 'true'
+    CSRF_COOKIE_HTTPONLY = os.getenv('CSRF_COOKIE_HTTPONLY', 'True').lower() == 'true'
     
     # HSTS settings
-    SECURE_HSTS_SECONDS = 31536000  # 1 year
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
+    SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '31536000'))  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv('SECURE_HSTS_INCLUDE_SUBDOMAINS', 'True').lower() == 'true'
+    SECURE_HSTS_PRELOAD = os.getenv('SECURE_HSTS_PRELOAD', 'True').lower() == 'true'
 
 # Application definition
 DJANGO_APPS = [
@@ -87,8 +87,8 @@ DATABASES = {
         'PORT': os.getenv('DB_PORT', '5432'),
         'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '60')),
         'OPTIONS': {
-            'connect_timeout': 10,
-            'sslmode': 'require',
+            'connect_timeout': int(os.getenv('DB_CONNECT_TIMEOUT', '10')),
+            'sslmode': os.getenv('DB_SSLMODE', 'require'),
         },
     }
 }
@@ -116,11 +116,11 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
         'rest_framework.throttling.ScopedRateThrottle',
     ],
-     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/day',  # Anonymous users
-        'user': '1000/day',  # Authenticated users
-        'contact_submission': '3/hour',  # Contact form submissions
-        'email_verification': '5/day',  # Email verification attempts
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': os.getenv('ANON_THROTTLE_RATE', '100/day'),
+        'user': os.getenv('USER_THROTTLE_RATE', '1000/day'),
+        'contact_submission': os.getenv('CONTACT_SUBMISSION_RATE', '3/hour'),
+        'email_verification': os.getenv('EMAIL_VERIFICATION_RATE', '5/day'),
     },
 }
 
@@ -128,9 +128,9 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=int(os.getenv('JWT_ACCESS_TOKEN_LIFETIME', '60'))),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.getenv('JWT_REFRESH_TOKEN_LIFETIME', '1'))),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
-    'UPDATE_LAST_LOGIN': True,
+    'ROTATE_REFRESH_TOKENS': os.getenv('JWT_ROTATE_REFRESH_TOKENS', 'True').lower() == 'true',
+    'BLACKLIST_AFTER_ROTATION': os.getenv('JWT_BLACKLIST_AFTER_ROTATION', 'True').lower() == 'true',
+    'UPDATE_LAST_LOGIN': os.getenv('JWT_UPDATE_LAST_LOGIN', 'True').lower() == 'true',
 }
 
 # Templates configuration
@@ -150,227 +150,131 @@ TEMPLATES = [
     },
 ]
 
-
 # Static files configuration
-STATIC_URL = '/static/'
+STATIC_URL = os.getenv('STATIC_URL', '/static/')
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static'] if os.path.exists(BASE_DIR / 'static') else []
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files configuration
-MEDIA_URL = '/media/'
+MEDIA_URL = os.getenv('MEDIA_URL', '/media/')
 MEDIA_ROOT = BASE_DIR / 'media'
 if not os.path.exists(MEDIA_ROOT):
     os.makedirs(MEDIA_ROOT, exist_ok=True)
 MEDIA_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
-MAX_UPLOAD_SIZE = 5242880  # 5MB
+MAX_UPLOAD_SIZE = int(os.getenv('MAX_UPLOAD_SIZE', '5242880'))  # 5MB
 
 # Email Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'mail.privateemail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'sales@movemate.me'
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = 'MoveMate <sales@movemate.me>'
-SALES_EMAIL = 'sales@movemate.me'
-# Email Configuration - Add these settings
-EMAIL_MAX_RETRIES = 3
-EMAIL_RETRY_DELAY = 300  # 5 minutes
-EMAIL_TIMEOUT = 30  # 30 seconds timeout for SMTP
-EMAIL_USE_SSL = False  # using TLS
-EMAIL_SSL_CERTFILE = None
-EMAIL_SSL_KEYFILE = None
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
+SALES_EMAIL = os.getenv('SALES_EMAIL')
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '60'))
+SERVER_EMAIL = os.getenv('SERVER_EMAIL')
 
-# Add DKIM and SPF headers
-EMAIL_USE_LOCALTIME = True
-EMAIL_TIMEOUT = 30
-SERVER_EMAIL = 'sales@movemate.me'
-
-# Reduce logging of email content
-if not DEBUG:
-    LOGGING = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'verbose': {
-                'format': '[{levelname}] {asctime} {module} {process:d} {thread:d} {message}',
-                'style': '{',
-            },
-        },
-        'handlers': {
-            'console': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'verbose',
-            },
-        },
-        'loggers': {
-            'django': {
-                'handlers': ['console'],
-                'level': 'INFO',
-                'propagate': True,
-            },
-            'django.server': {
-                'handlers': ['console'],
-                'level': 'WARNING',
-                'propagate': False,
-            },
-            'django.mail': {
-                'handlers': ['console'],
-                'level': 'WARNING',
-                'propagate': True,
-            },
-        },
-    }
 if DEBUG:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
 # CORS and CSRF configuration
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-]
+CORS_ALLOW_CREDENTIALS = os.getenv('CORS_ALLOW_CREDENTIALS', 'True').lower() == 'true'
+CORS_ALLOW_METHODS = os.getenv('CORS_ALLOW_METHODS', 'DELETE,GET,OPTIONS,PATCH,POST,PUT').split(',')
+CORS_ALLOW_HEADERS = os.getenv('CORS_ALLOW_HEADERS', 'accept,accept-encoding,authorization,content-type,dnt,origin,user-agent,x-csrftoken,x-requested-with').split(',')
 
-CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if not DEBUG else [
-    'http://localhost:3000',
-    'https://sage-cassata-fc6fc9.netlify.app',
-    'https://movemate-dbqo.onrender.com'
-]
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
 
 # Security settings
-FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv('FILE_UPLOAD_MAX_MEMORY_SIZE', '5242880'))  # 5MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv('DATA_UPLOAD_MAX_MEMORY_SIZE', '5242880'))  # 5MB
 
 # Production settings for Render.com
 if not DEBUG:
-    # HTTPS settings
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    
-    # HSTS settings
-    SECURE_HSTS_SECONDS = 31536000 # 1 year
-    SECURE_HSTS_PRELOAD = True
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    
-    # Other security settings
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
-    SECURE_REFERRER_POLICY = 'same-origin'
-    
+    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'True').lower() == 'true'
+    SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
+    CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'True').lower() == 'true'
 
 # Admin configuration
-ADMIN_SITE_HEADER = 'MoveMate Administration'
-ADMIN_SITE_TITLE = 'MoveMate Admin Portal'
-ADMIN_INDEX_TITLE = 'Welcome to MoveMate Administration'
+ADMIN_SITE_HEADER = os.getenv('ADMIN_SITE_HEADER', 'MoveMate Administration')
+ADMIN_SITE_TITLE = os.getenv('ADMIN_SITE_TITLE', 'MoveMate Admin Portal')
+ADMIN_INDEX_TITLE = os.getenv('ADMIN_INDEX_TITLE', 'Welcome to MoveMate Administration')
 
 # Internationalization
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
-USE_I18N = True
-USE_TZ = True
-DATE_FORMAT = 'Y-m-d'
-DATETIME_FORMAT = 'Y-m-d H:i:s'
+LANGUAGE_CODE = os.getenv('LANGUAGE_CODE', 'en-us')
+TIME_ZONE = os.getenv('TIME_ZONE', 'UTC')
+USE_I18N = os.getenv('USE_I18N', 'True').lower() == 'true'
+USE_TZ = os.getenv('USE_TZ', 'True').lower() == 'true'
+DATE_FORMAT = os.getenv('DATE_FORMAT', 'Y-m-d')
+DATETIME_FORMAT = os.getenv('DATETIME_FORMAT', 'Y-m-d H:i:s')
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Logging configuration
-if DEBUG:
-    # Development logging - console only
-    LOGGING = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'verbose': {
-                'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-                'style': '{',
-            },
-            'simple': {
-                'format': '{levelname} {message}',
-                'style': '{',
-            },
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
         },
-        'handlers': {
-            'console': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'verbose',
-            },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
         },
-        'root': {
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': os.getenv('ROOT_LOG_LEVEL', 'INFO'),
+    },
+    'loggers': {
+        'django': {
             'handlers': ['console'],
-            'level': 'INFO',
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            'propagate': True,
         },
-        'loggers': {
-            'django': {
-                'handlers': ['console'],
-                'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
-                'propagate': True,
-            },
-        },
-    }
-else:
-    # Production logging - console only (for Render.com)
-    LOGGING = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'verbose': {
-                'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-                'style': '{',
-            },
-            'simple': {
-                'format': '{levelname} {message}',
-                'style': '{',
-            },
-        },
-        'handlers': {
-            'console': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'verbose',
-            },
-        },
-        'root': {
+        'django.request': {
             'handlers': ['console'],
-            'level': 'INFO',
+            'level': os.getenv('DJANGO_REQUEST_LOG_LEVEL', 'ERROR'),
+            'propagate': False,
         },
-        'loggers': {
-            'django': {
-                'handlers': ['console'],
-                'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
-                'propagate': True,
-            },
-            'django.request': {
-                'handlers': ['console'],
-                'level': 'ERROR',
-                'propagate': False,
-            },
-            'django.security': {
-                'handlers': ['console'],
-                'level': 'ERROR',
-                'propagate': False,
-            },
+        'django.security': {
+            'handlers': ['console'],
+            'level': os.getenv('DJANGO_SECURITY_LOG_LEVEL', 'ERROR'),
+            'propagate': False,
         },
-    }
+    },
+}
 
+# Cache Configuration
+CACHES = {
+    'default': {
+        'BACKEND': os.getenv('CACHE_BACKEND', 'django.core.cache.backends.locmem.LocMemCache' if DEBUG else 'django_redis.cache.RedisCache'),
+        'LOCATION': os.getenv('REDIS_URL', 'redis://localhost:6379/0'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'SOCKET_CONNECT_TIMEOUT': int(os.getenv('REDIS_SOCKET_CONNECT_TIMEOUT', '5')),
+            'SOCKET_TIMEOUT': int(os.getenv('REDIS_SOCKET_TIMEOUT', '5')),
+            'RETRY_ON_TIMEOUT': os.getenv('REDIS_RETRY_ON_TIMEOUT', 'True').lower() == 'true',
+            'MAX_CONNECTIONS': int(os.getenv('REDIS_MAX_CONNECTIONS', '10')),
+            'PASSWORD': os.getenv('REDIS_PASSWORD'),
+        },
+        'KEY_PREFIX': os.getenv('CACHE_KEY_PREFIX', 'movemate_prod'),
+        'TIMEOUT': int(os.getenv('CACHE_TIMEOUT', '300')),
+    }
+}
+
+# Swagger settings
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
         'Bearer': {
@@ -389,44 +293,6 @@ REDOC_SETTINGS = {
     'LAZY_RENDERING': True,
 }
 
-# Cache Configuration
-if DEBUG:
-    # Use local memory cache for development
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'unique-snowflake',
-            'TIMEOUT': 300,  # 5 minutes default timeout
-            'OPTIONS': {
-                'MAX_ENTRIES': 1000
-            }
-        }
-    }
-else:
-    # Use Redis cache for production
-    CACHES = {
-        'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': os.getenv('REDIS_URL', 'redis://localhost:6379/0'),
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-                'SOCKET_CONNECT_TIMEOUT': 5,
-                'SOCKET_TIMEOUT': 5,
-                'RETRY_ON_TIMEOUT': True,
-                'MAX_CONNECTIONS': 10,
-                'CONNECTION_POOL_CLASS': 'redis.BlockingConnectionPool',
-                'CONNECTION_POOL_CLASS_KWARGS': {
-                    'max_connections': 50,
-                    'timeout': 20,
-                },
-                'PASSWORD': os.getenv('REDIS_PASSWORD', None),
-            },
-            'KEY_PREFIX': 'movemate',  # Add your app prefix
-            'TIMEOUT': 300,  # 5 minutes default timeout
-        }
-    }
-
 # Error reporting
-ADMINS = [('Admin', 'sales@movemate.me')]
+ADMINS = [(os.getenv('ADMIN_NAME', 'Admin'), os.getenv('ADMIN_EMAIL'))]
 MANAGERS = ADMINS
-SERVER_EMAIL = 'sales@movemate.me'
