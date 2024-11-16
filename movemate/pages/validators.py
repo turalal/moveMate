@@ -1,49 +1,40 @@
 # pages/validators.py
-import re
+from rest_framework.throttling import AnonRateThrottle
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.core.cache import cache
-from rest_framework.throttling import AnonRateThrottle
-from datetime import datetime, timedelta
 
 class EmailDomainValidator:
-    """Validates email domains against allowed/blocked lists."""
+    """Validates email domains against blocked lists."""
     
     BLOCKED_DOMAINS = {
-        'tempmail.com', 'throwawaymail.com', 'guerrillamail.com',
-        # Add more disposable email domains
+        'tempmail.com', 'temp-mail.org', 'guerrillamail.com', 
+        'sharklasers.com', 'grr.la', 'guerrillamail.info',
+        'yopmail.com', 'disposablemail.com', 'mailinator.com',
+        # Add more as needed
     }
     
-    @classmethod
-    def validate_domain(cls, email):
+    @staticmethod
+    def validate(email):
         try:
-            # Basic email format validation
+            # Basic email validation
             validate_email(email)
             
             # Extract domain
             domain = email.split('@')[1].lower()
             
-            # Check against blocked domains
-            if domain in cls.BLOCKED_DOMAINS:
-                raise ValidationError('This email domain is not allowed.')
-            
-            # Additional domain validation rules can be added here
-            
+            if domain in EmailDomainValidator.BLOCKED_DOMAINS:
+                raise ValidationError('Temporary or disposable email addresses are not allowed.')
+                
         except IndexError:
             raise ValidationError('Invalid email format.')
 
 class EmailThrottler(AnonRateThrottle):
-    """Custom throttle for email submissions."""
+    """Throttle for limiting email submissions."""
     
-    rate = '3/hour'  # Limit to 3 emails per hour per IP
-    cache_format = 'email_throttle_{}'
+    rate = '3/hour'  # Adjust as needed
     
     def get_cache_key(self, request, view):
         if not request.META.get('REMOTE_ADDR'):
             return None
-        
-        return self.cache_format.format(request.META.get('REMOTE_ADDR'))
-
-
-
-
+            
+        return f'email_throttle_{request.META.get("REMOTE_ADDR")}'

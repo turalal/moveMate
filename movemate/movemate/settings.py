@@ -14,6 +14,27 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+if not DEBUG:
+    # Add security headers
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_REFERRER_POLICY = 'same-origin'
+    
+    # Session security
+    SESSION_COOKIE_AGE = 3600  # 1 hour
+    SESSION_SAVE_EVERY_REQUEST = True
+    SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_HTTPONLY = True
+    
+    # HSTS settings
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 # Application definition
 DJANGO_APPS = [
@@ -92,11 +113,14 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle'
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.ScopedRateThrottle',
     ],
-    'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/day',
-        'user': '1000/day'
+     'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/day',  # Anonymous users
+        'user': '1000/day',  # Authenticated users
+        'contact_submission': '3/hour',  # Contact form submissions
+        'email_verification': '5/day',  # Email verification attempts
     },
 }
 
@@ -142,9 +166,6 @@ MEDIA_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 MAX_UPLOAD_SIZE = 5242880  # 5MB
 
 # Email Configuration
-# movemate/settings.py
-
-# Email Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'mail.privateemail.com'
 EMAIL_PORT = 587
@@ -153,6 +174,13 @@ EMAIL_HOST_USER = 'sales@movemate.me'
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = 'MoveMate <sales@movemate.me>'
 SALES_EMAIL = 'sales@movemate.me'
+# Email Configuration - Add these settings
+EMAIL_MAX_RETRIES = 3
+EMAIL_RETRY_DELAY = 300  # 5 minutes
+EMAIL_TIMEOUT = 30  # 30 seconds timeout for SMTP
+EMAIL_USE_SSL = False  # using TLS
+EMAIL_SSL_CERTFILE = None
+EMAIL_SSL_KEYFILE = None
 
 # Add DKIM and SPF headers
 EMAIL_USE_LOCALTIME = True
@@ -360,6 +388,43 @@ SWAGGER_SETTINGS = {
 REDOC_SETTINGS = {
     'LAZY_RENDERING': True,
 }
+
+# Cache Configuration
+if DEBUG:
+    # Use local memory cache for development
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+            'TIMEOUT': 300,  # 5 minutes default timeout
+            'OPTIONS': {
+                'MAX_ENTRIES': 1000
+            }
+        }
+    }
+else:
+    # Use Redis cache for production
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': os.getenv('REDIS_URL', 'redis://localhost:6379/0'),
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'SOCKET_CONNECT_TIMEOUT': 5,
+                'SOCKET_TIMEOUT': 5,
+                'RETRY_ON_TIMEOUT': True,
+                'MAX_CONNECTIONS': 10,
+                'CONNECTION_POOL_CLASS': 'redis.BlockingConnectionPool',
+                'CONNECTION_POOL_CLASS_KWARGS': {
+                    'max_connections': 50,
+                    'timeout': 20,
+                },
+                'PASSWORD': os.getenv('REDIS_PASSWORD', None),
+            },
+            'KEY_PREFIX': 'movemate',  # Add your app prefix
+            'TIMEOUT': 300,  # 5 minutes default timeout
+        }
+    }
 
 # Error reporting
 ADMINS = [('Admin', 'sales@movemate.me')]
