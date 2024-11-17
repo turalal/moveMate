@@ -1,0 +1,254 @@
+<!-- dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>MoveMate – User Dashboard</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    
+    <!-- Keep your current CSS imports -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Poppins:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css"/>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+
+    <style>
+        .dashboard-section {
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+        .profile-img {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .sidebar {
+            background-color: #f8f9fa;
+            min-height: calc(100vh - 100px);
+            padding: 20px;
+        }
+        .sidebar-link {
+            display: block;
+            padding: 10px 15px;
+            color: #333;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+        .sidebar-link:hover, .sidebar-link.active {
+            background-color: #e9ecef;
+            color: #007bff;
+        }
+        .content-area {
+            padding: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Keep your current navbar -->
+    <nav class="navbar navbar-expand-lg bg-white navbar-light shadow sticky-top p-0">
+        <a href="index.html" class="navbar-brand d-flex align-items-center px-4 px-lg-5">
+            <img src="img/brand-logo.png" class="img-fluid" alt="">
+        </a>
+        <button type="button" class="navbar-toggler me-4" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarCollapse">
+            <div class="navbar-nav ms-auto">
+                <a href="#" class="nav-link" id="userNameDisplay"></a>
+                <a href="#" class="nav-link" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 sidebar">
+                <div class="d-flex flex-column">
+                    <a href="#" class="sidebar-link active" data-section="profile">
+                        <i class="fas fa-user me-2"></i> Profile
+                    </a>
+                    <a href="#" class="sidebar-link" data-section="documents">
+                        <i class="fas fa-file-alt me-2"></i> Documents
+                    </a>
+                    <a href="#" class="sidebar-link" data-section="messages">
+                        <i class="fas fa-envelope me-2"></i> Messages
+                    </a>
+                    <a href="#" class="sidebar-link" data-section="settings">
+                        <i class="fas fa-cog me-2"></i> Settings
+                    </a>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 content-area">
+                <!-- Profile Section -->
+                <div class="dashboard-section" id="profileSection">
+                    <h2 class="mb-4">My Profile</h2>
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <img src="https://via.placeholder.com/150" alt="Profile" class="profile-img mb-3">
+                            <button class="btn btn-primary btn-sm">Change Photo</button>
+                        </div>
+                        <div class="col-md-8">
+                            <form id="profileForm">
+                                <div class="mb-3">
+                                    <label class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="profileUsername" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="profileEmail" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Phone</label>
+                                    <input type="tel" class="form-control" id="profilePhone">
+                                </div>
+                                <button type="submit" class="btn btn-primary">Update Profile</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documents Section -->
+                <div class="dashboard-section d-none" id="documentsSection">
+                    <h2 class="mb-4">My Documents</h2>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Document Name</th>
+                                    <th>Type</th>
+                                    <th>Upload Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="documentsList">
+                                <!-- Documents will be loaded here -->
+                            </tbody>
+                        </table>
+                        <button class="btn btn-primary" onclick="uploadDocument()">
+                            <i class="fas fa-upload me-2"></i>Upload New Document
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Messages Section -->
+                <div class="dashboard-section d-none" id="messagesSection">
+                    <h2 class="mb-4">My Messages</h2>
+                    <div id="messagesList">
+                        <!-- Messages will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Settings Section -->
+                <div class="dashboard-section d-none" id="settingsSection">
+                    <h2 class="mb-4">Settings</h2>
+                    <form id="settingsForm">
+                        <div class="mb-3">
+                            <label class="form-label">Email Notifications</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="emailNotifications">
+                                <label class="form-check-label">Receive email notifications</label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Change Password</label>
+                            <input type="password" class="form-control mb-2" placeholder="Current Password">
+                            <input type="password" class="form-control mb-2" placeholder="New Password">
+                            <input type="password" class="form-control" placeholder="Confirm New Password">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Settings</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keep your current footer -->
+
+    <!-- JavaScript -->
+    <script>
+        // Check authentication
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // Load user data
+            loadUserData();
+            
+            // Set up sidebar navigation
+            setupSidebarNavigation();
+        });
+
+        function loadUserData() {
+            const token = localStorage.getItem('token');
+            fetch(`${API_URL}/auth/user/`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('userNameDisplay').textContent = data.username;
+                document.getElementById('profileUsername').value = data.username;
+                document.getElementById('profileEmail').value = data.email;
+                document.getElementById('profilePhone').value = data.phone || '';
+            })
+            .catch(error => {
+                console.error('Error loading user data:', error);
+                localStorage.removeItem('token');
+                window.location.href = 'login.html';
+            });
+        }
+
+        function setupSidebarNavigation() {
+            const sidebarLinks = document.querySelectorAll('.sidebar-link');
+            const sections = document.querySelectorAll('.dashboard-section');
+            
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const sectionName = this.dataset.section;
+                    
+                    // Update active link
+                    sidebarLinks.forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Show selected section
+                    sections.forEach(section => {
+                        section.classList.add('d-none');
+                        if (section.id === `${sectionName}Section`) {
+                            section.classList.remove('d-none');
+                        }
+                    });
+                });
+            });
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = 'login.html';
+        }
+
+        // Update login.js to redirect to dashboard instead of index
+        // In your login.js, change:
+        // window.location.href = 'index.html';
+        // to:
+        // window.location.href = 'dashboard.html';
+    </script>
+</body>
+</html>
