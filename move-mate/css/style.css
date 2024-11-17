@@ -219,3 +219,9 @@
         padding: 3px;
     }
 }
+
+}
+.testimonial-item .testimonial-content {
+    display: block !important; /* Məcburi göstərmək üçün */
+    visibility: visible !important;
+}
