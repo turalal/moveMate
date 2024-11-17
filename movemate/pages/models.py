@@ -12,7 +12,8 @@ class Contact(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.name} - {self.subject}"
+        return f"{self.name} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+
 
 class Service(models.Model):
     title = models.CharField(max_length=200)
@@ -82,6 +83,7 @@ class Comment(models.Model):
     post = models.ForeignKey(BlogPost, on_delete=models.CASCADE, related_name='comments')
     author = models.ForeignKey('authentication.User', on_delete=models.CASCADE, related_name='blog_comments')
     content = models.TextField()
+    is_approved = models.BooleanField(default=True)  # Add this field
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

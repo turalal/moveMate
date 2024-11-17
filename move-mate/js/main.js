@@ -148,7 +148,7 @@
             if (data.access) {
                 localStorage.setItem('token', data.access);
                 authToken = data.access;
-                window.location.href = 'index.html';
+                window.location.href = 'dashboard.html';
             }
         })
         .catch(error => {
