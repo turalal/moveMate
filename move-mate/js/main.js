@@ -313,5 +313,17 @@
     smartSpeed: 800,
 });
 
+$('.testimonial-carousel').owlCarousel({
+    items: 1,
+    loop: true,
+    margin: 30,
+    nav: true,
+    dots: true,
+    autoplay: true,
+    autoplayTimeout: 5000,
+    smartSpeed: 1000,
+});
+
+
 
 })(jQuery);
