@@ -305,4 +305,13 @@
         loadBlogPostDetail();
     });
 
+    $('.owl-carousel').owlCarousel({
+    items: 1, // Hər dəfə bir testimonial göstərin
+    loop: true,
+    autoplay: true,
+    autoplayTimeout: 5000,
+    smartSpeed: 800,
+});
+
+
 })(jQuery);
