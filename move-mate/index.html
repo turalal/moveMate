@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MoveMate - Start Your American Journey</title>
     <link rel="icon" type="image/png" href="img/favicon.png">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
     
     <style>
@@ -21,69 +21,127 @@
             line-height: 1.6;
         }
 
-        /* Header */
-        header {
+        /* Navigation */
+        nav {
+            background: white;
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-img {
+            height: 45px;
+        }
+
+        .nav-phone {
+            background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 16px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-phone:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(14, 165, 233, 0.4);
+        }
+
+        /* Hero Section */
+        .hero {
             background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 50%, #0369a1 100%);
             padding: 80px 20px;
-            text-align: center;
             color: white;
+            position: relative;
+            overflow: hidden;
         }
 
-        .logo {
-            max-width: 180px;
-            margin-bottom: 30px;
+        .hero::before {
+            content: '';
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            top: -200px;
+            right: -150px;
         }
 
-        h1 {
-            font-size: 48px;
+        .hero-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-content h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 52px;
             font-weight: 800;
-            margin-bottom: 20px;
             line-height: 1.2;
+            margin-bottom: 20px;
         }
 
-        .subtitle {
+        .hero-content p {
             font-size: 20px;
             margin-bottom: 40px;
             opacity: 0.95;
-            max-width: 700px;
-            margin-left: auto;
-            margin-right: auto;
         }
 
-        .contact-main {
+        .hero-cta {
             display: flex;
             flex-direction: column;
             gap: 20px;
-            align-items: center;
-            margin-top: 40px;
         }
 
-        .phone-number {
-            font-size: 36px;
-            font-weight: 700;
-            color: white;
-            text-decoration: none;
-            padding: 20px 50px;
-            background: rgba(255, 255, 255, 0.2);
+        .phone-big {
+            background: white;
+            color: #0ea5e9;
+            padding: 25px 40px;
             border-radius: 15px;
-            backdrop-filter: blur(10px);
+            text-decoration: none;
+            font-size: 32px;
+            font-weight: 800;
             display: inline-flex;
             align-items: center;
             gap: 15px;
             transition: all 0.3s;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            justify-content: center;
         }
 
-        .phone-number:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
+        .phone-big:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
         }
 
         .email-link {
-            font-size: 18px;
             color: white;
             text-decoration: none;
+            font-size: 18px;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 10px;
             opacity: 0.9;
         }
@@ -92,10 +150,145 @@
             opacity: 1;
         }
 
+        .hero-image {
+            position: relative;
+        }
+
+        .hero-image img {
+            width: 100%;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Stats Section */
+        .stats {
+            background: white;
+            padding: 60px 20px;
+            margin-top: -40px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .stats-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 35px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 42px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            color: #64748b;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* About Section */
+        .about {
+            padding: 80px 20px;
+            background: #f8fafc;
+        }
+
+        .about-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+
+        .about-images {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .about-images img {
+            width: 100%;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .about-images img:first-child {
+            grid-column: 1 / 3;
+        }
+
+        .about-content h2 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 38px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            color: #1e293b;
+        }
+
+        .about-content p {
+            color: #64748b;
+            font-size: 17px;
+            margin-bottom: 30px;
+            line-height: 1.8;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .feature-item {
+            display: flex;
+            gap: 15px;
+            align-items: start;
+        }
+
+        .feature-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .feature-item h4 {
+            font-weight: 700;
+            margin-bottom: 5px;
+            color: #1e293b;
+        }
+
+        .feature-item p {
+            color: #64748b;
+            font-size: 14px;
+            margin: 0;
+        }
+
         /* Services Section */
         .services {
             padding: 80px 20px;
-            background: #f8fafc;
+            background: white;
         }
 
         .container {
@@ -105,10 +298,18 @@
 
         .section-title {
             text-align: center;
-            font-size: 36px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 42px;
             font-weight: 800;
-            margin-bottom: 50px;
+            margin-bottom: 15px;
             color: #1e293b;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            color: #64748b;
+            font-size: 18px;
+            margin-bottom: 50px;
         }
 
         .services-grid {
@@ -119,21 +320,22 @@
 
         .service-card {
             background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            padding: 35px 25px;
+            border-radius: 20px;
+            border: 2px solid #e2e8f0;
             text-align: center;
             transition: all 0.3s;
         }
 
         .service-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(14, 165, 233, 0.15);
+            transform: translateY(-8px);
+            border-color: #0ea5e9;
+            box-shadow: 0 15px 40px rgba(14, 165, 233, 0.15);
         }
 
         .service-icon {
-            width: 60px;
-            height: 60px;
+            width: 70px;
+            height: 70px;
             background: linear-gradient(135deg, #38bdf8, #0ea5e9);
             border-radius: 50%;
             display: flex;
@@ -141,7 +343,7 @@
             justify-content: center;
             margin: 0 auto 20px;
             color: white;
-            font-size: 24px;
+            font-size: 28px;
         }
 
         .service-card h3 {
@@ -159,41 +361,43 @@
         /* Packages Section */
         .packages {
             padding: 80px 20px;
-            background: white;
+            background: #f8fafc;
         }
 
         .packages-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 30px;
             margin-top: 50px;
         }
 
         .package {
             background: white;
-            border: 2px solid #e2e8f0;
-            border-radius: 20px;
+            border: 3px solid #e2e8f0;
+            border-radius: 25px;
             padding: 40px 30px;
             transition: all 0.3s;
+            position: relative;
         }
 
         .package:hover {
             border-color: #0ea5e9;
-            box-shadow: 0 10px 30px rgba(14, 165, 233, 0.15);
+            box-shadow: 0 15px 40px rgba(14, 165, 233, 0.15);
+            transform: translateY(-5px);
         }
 
         .package.featured {
             border-color: #0ea5e9;
-            position: relative;
         }
 
         .badge {
             position: absolute;
             top: -15px;
-            right: 30px;
+            left: 50%;
+            transform: translateX(-50%);
             background: linear-gradient(135deg, #38bdf8, #0ea5e9);
             color: white;
-            padding: 8px 20px;
+            padding: 8px 25px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 700;
@@ -201,7 +405,8 @@
         }
 
         .package h3 {
-            font-size: 24px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 26px;
             font-weight: 800;
             margin-bottom: 10px;
             color: #1e293b;
@@ -210,6 +415,7 @@
         .package-desc {
             color: #64748b;
             margin-bottom: 25px;
+            font-size: 15px;
         }
 
         .package ul {
@@ -218,10 +424,10 @@
         }
 
         .package li {
-            padding: 10px 0;
+            padding: 12px 0;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             color: #64748b;
         }
 
@@ -230,56 +436,130 @@
             font-size: 16px;
         }
 
+        /* Testimonials */
+        .testimonials {
+            padding: 80px 20px;
+            background: white;
+        }
+
+        .testimonials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            margin-top: 50px;
+        }
+
+        .testimonial-card {
+            background: #f8fafc;
+            padding: 35px;
+            border-radius: 20px;
+            position: relative;
+        }
+
+        .quote-icon {
+            font-size: 40px;
+            color: #0ea5e9;
+            opacity: 0.2;
+            position: absolute;
+            top: 20px;
+            left: 30px;
+        }
+
+        .stars {
+            color: #fbbf24;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .testimonial-text {
+            color: #64748b;
+            font-style: italic;
+            margin-bottom: 25px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .testimonial-author {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .author-image {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            overflow: hidden;
+        }
+
+        .author-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .author-info h4 {
+            font-weight: 700;
+            margin-bottom: 5px;
+            color: #1e293b;
+        }
+
+        .author-info p {
+            color: #64748b;
+            font-size: 14px;
+            margin: 0;
+        }
+
         /* Footer */
         footer {
             background: #1e293b;
             color: white;
-            padding: 50px 20px 30px;
-            text-align: center;
+            padding: 60px 20px 30px;
         }
 
-        .footer-content {
+        .footer-container {
             max-width: 1200px;
             margin: 0 auto;
         }
 
-        .footer-info {
-            margin-bottom: 30px;
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+            margin-bottom: 40px;
         }
 
-        .footer-info h4 {
+        .footer-section h4 {
             font-size: 20px;
-            margin-bottom: 20px;
             font-weight: 700;
+            margin-bottom: 20px;
         }
 
-        .footer-contact {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            align-items: center;
-            margin-bottom: 30px;
+        .footer-links {
+            list-style: none;
         }
 
-        .footer-contact a {
-            color: rgba(255, 255, 255, 0.8);
+        .footer-links li {
+            margin-bottom: 12px;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.7);
             text-decoration: none;
-            font-size: 16px;
+            transition: color 0.3s;
             display: flex;
             align-items: center;
             gap: 10px;
-            transition: color 0.3s;
         }
 
-        .footer-contact a:hover {
+        .footer-links a:hover {
             color: #38bdf8;
         }
 
         .social-links {
             display: flex;
             gap: 15px;
-            justify-content: center;
-            margin-bottom: 30px;
+            margin-top: 20px;
         }
 
         .social-links a {
@@ -301,6 +581,7 @@
         }
 
         .copyright {
+            text-align: center;
             padding-top: 30px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
             color: rgba(255, 255, 255, 0.6);
@@ -308,61 +589,165 @@
         }
 
         /* Mobile Responsive */
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 32px;
+        @media (max-width: 968px) {
+            .hero-container,
+            .about-container {
+                grid-template-columns: 1fr;
             }
 
-            .phone-number {
+            .hero-content h1 {
+                font-size: 36px;
+            }
+
+            .phone-big {
                 font-size: 24px;
-                padding: 15px 30px;
+                padding: 20px 30px;
             }
 
-            .subtitle {
-                font-size: 18px;
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
             }
 
             .section-title {
-                font-size: 28px;
+                font-size: 32px;
             }
 
             .services-grid,
-            .packages-grid {
+            .packages-grid,
+            .testimonials-grid {
                 grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .nav-phone {
+                font-size: 14px;
+                padding: 10px 20px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <header>
-        <img src="img/brand-logo.png" alt="MoveMate" class="logo">
-        <h1>Start Your American Journey</h1>
-        <p class="subtitle">Professional relocation services to help immigrants seamlessly transition to life in the United States</p>
-        
-        <div class="contact-main">
-            <a href="tel:+15715647755" class="phone-number">
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <img src="img/brand-logo.png" alt="MoveMate" class="logo-img">
+            <a href="tel:+15715647755" class="nav-phone">
                 <i class="fas fa-phone-alt"></i>
                 +1 (571) 564-7755
             </a>
-            <a href="mailto:sales@movemate.me" class="email-link">
-                <i class="fas fa-envelope"></i>
-                sales@movemate.me
-            </a>
         </div>
-    </header>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1>Start Your American Journey</h1>
+                <p>Professional relocation services to help immigrants seamlessly transition to life in the United States</p>
+                <div class="hero-cta">
+                    <a href="tel:+15715647755" class="phone-big">
+                        <i class="fas fa-phone-alt"></i>
+                        +1 (571) 564-7755
+                    </a>
+                    <a href="mailto:sales@movemate.me" class="email-link">
+                        <i class="fas fa-envelope"></i>
+                        sales@movemate.me
+                    </a>
+                </div>
+            </div>
+            <div class="hero-image">
+                <img src="img/about-3.jpg" alt="American Journey">
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats">
+        <div class="stats-container">
+            <div class="stat-card">
+                <span class="stat-number">16+</span>
+                <span class="stat-label">Happy Clients</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">12+</span>
+                <span class="stat-label">Services</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">100%</span>
+                <span class="stat-label">Satisfaction</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="about">
+        <div class="about-container">
+            <div class="about-images">
+                <img src="img/about-3.jpg" alt="MoveMate Services">
+                <img src="img/carousel-17.jpg" alt="Settlement Support">
+            </div>
+            <div class="about-content">
+                <h2>Your Trusted Partner in USA</h2>
+                <p>MoveMate is a comprehensive relocation and integration service designed to support immigrants as they begin their journey in the United States. We handle everything from housing to documentation.</p>
+                <div class="features">
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div>
+                            <h4>Scam Protection</h4>
+                            <p>Navigate risks safely</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-home"></i>
+                        </div>
+                        <div>
+                            <h4>Secure Housing</h4>
+                            <p>Find reliable homes</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-headset"></i>
+                        </div>
+                        <div>
+                            <h4>24/7 Support</h4>
+                            <p>Always here for you</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div>
+                            <h4>Expert Guidance</h4>
+                            <p>Professional advice</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <!-- Services Section -->
     <section class="services">
         <div class="container">
             <h2 class="section-title">Our Services</h2>
+            <p class="section-subtitle">Everything you need for a smooth transition</p>
             <div class="services-grid">
                 <div class="service-card">
                     <div class="service-icon">
                         <i class="fas fa-home"></i>
                     </div>
                     <h3>Apartment Search</h3>
-                    <p>Find your perfect home in the USA</p>
+                    <p>Find your perfect home</p>
                 </div>
 
                 <div class="service-card">
@@ -370,7 +755,7 @@
                         <i class="fas fa-plane-arrival"></i>
                     </div>
                     <h3>Airport Pickup</h3>
-                    <p>Safe transfer to your residence</p>
+                    <p>Safe transfer service</p>
                 </div>
 
                 <div class="service-card">
@@ -378,7 +763,7 @@
                         <i class="fas fa-mobile-alt"></i>
                     </div>
                     <h3>SIM Card Setup</h3>
-                    <p>Stay connected from day one</p>
+                    <p>Stay connected</p>
                 </div>
 
                 <div class="service-card">
@@ -386,7 +771,7 @@
                         <i class="fas fa-university"></i>
                     </div>
                     <h3>Bank Account</h3>
-                    <p>Complete financial setup</p>
+                    <p>Financial setup</p>
                 </div>
 
                 <div class="service-card">
@@ -394,7 +779,7 @@
                         <i class="fas fa-car"></i>
                     </div>
                     <h3>Driver's License</h3>
-                    <p>Preparation and support</p>
+                    <p>Preparation support</p>
                 </div>
 
                 <div class="service-card">
@@ -402,7 +787,7 @@
                         <i class="fas fa-file-alt"></i>
                     </div>
                     <h3>Legal Documentation</h3>
-                    <p>Assistance with paperwork</p>
+                    <p>Paperwork assistance</p>
                 </div>
 
                 <div class="service-card">
@@ -410,7 +795,7 @@
                         <i class="fas fa-school"></i>
                     </div>
                     <h3>School Registration</h3>
-                    <p>Support for children's education</p>
+                    <p>Children's education</p>
                 </div>
 
                 <div class="service-card">
@@ -418,7 +803,7 @@
                         <i class="fas fa-notes-medical"></i>
                     </div>
                     <h3>Health Insurance</h3>
-                    <p>Healthcare coverage assistance</p>
+                    <p>Healthcare coverage</p>
                 </div>
 
                 <div class="service-card">
@@ -434,7 +819,7 @@
                         <i class="fas fa-headset"></i>
                     </div>
                     <h3>24/7 Support</h3>
-                    <p>Always here to help you</p>
+                    <p>Always available</p>
                 </div>
             </div>
         </div>
@@ -444,6 +829,7 @@
     <section class="packages">
         <div class="container">
             <h2 class="section-title">Choose Your Package</h2>
+            <p class="section-subtitle">Flexible plans to match your needs</p>
             <div class="packages-grid">
                 <div class="package">
                     <h3>Basic Package</h3>
@@ -485,41 +871,96 @@
         </div>
     </section>
 
-    <!-- Footer -->
-    <footer>
-        <div class="footer-content">
-            <div class="footer-info">
-                <h4>Contact Us</h4>
-                <div class="footer-contact">
-                    <a href="tel:+15715647755">
-                        <i class="fas fa-phone-alt"></i>
-                        +1 (571) 564-7755
-                    </a>
-                    <a href="mailto:sales@movemate.me">
-                        <i class="fas fa-envelope"></i>
-                        sales@movemate.me
-                    </a>
-                    <a href="https://wa.me/15715647755" target="_blank">
-                        <i class="fab fa-whatsapp"></i>
-                        WhatsApp Us
-                    </a>
-                    <a href="#">
-                        <i class="fas fa-map-marker-alt"></i>
-                        Fairfax, VA, US
-                    </a>
+    <!-- Testimonials Section -->
+    <section class="testimonials">
+        <div class="container">
+            <h2 class="section-title">What Our Clients Say</h2>
+            <p class="section-subtitle">Real experiences from real people</p>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <i class="fas fa-quote-left quote-icon"></i>
+                    <div class="stars">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">"MoveMate made my transition to the U.S. so much easier. From finding an apartment to setting up my bank account, they were there every step of the way!"</p>
+                    <div class="testimonial-author">
+                        <div class="author-image">
+                            <img src="img/emin.jpg" alt="Emil Guliyev">
+                        </div>
+                        <div class="author-info">
+                            <h4>Mushvig Babirov</h4>
+                            <p>New Immigrant</p>
+                        </div>
+                    </div>
                 </div>
             </div>
+        </div>
+    </section>
 
-            <div class="social-links">
-                <a href="https://www.facebook.com/movematellc" target="_blank">
-                    <i class="fab fa-facebook-f"></i>
-                </a>
-                <a href="https://www.instagram.com/movemate_llc" target="_blank">
-                    <i class="fab fa-instagram"></i>
-                </a>
-                <a href="https://www.linkedin.com/company/movemate-llc" target="_blank">
-                    <i class="fab fa-linkedin-in"></i>
-                </a>
+    <!-- Footer -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>Contact Us</h4>
+                    <ul class="footer-links">
+                        <li>
+                            <a href="tel:+15715647755">
+                                <i class="fas fa-phone-alt"></i>
+                                +1 (571) 564-7755
+                            </a>
+                        </li>
+                        <li>
+                            <a href="mailto:sales@movemate.me">
+                                <i class="fas fa-envelope"></i>
+                                sales@movemate.me
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://wa.me/15715647755" target="_blank">
+                                <i class="fab fa-whatsapp"></i>
+                                WhatsApp Us
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#">
+                                <i class="fas fa-map-marker-alt"></i>
+                                Fairfax, VA, US
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Our Services</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">Apartment Search</a></li>
+                        <li><a href="#">Airport Pickup</a></li>
+                        <li><a href="#">Bank Account Setup</a></li>
+                        <li><a href="#">Legal Documentation</a></li>
+                        <li><a href="#">24/7 Support</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Follow Us</h4>
+                    <p style="color: rgba(255, 255, 255, 0.7); margin-bottom: 20px;">Stay connected with us on social media</p>
+                    <div class="social-links">
+                        <a href="https://www.facebook.com/movematellc" target="_blank">
+                            <i class="fab fa-facebook-f"></i>
+                        </a>
+                        <a href="https://www.instagram.com/movemate_llc" target="_blank">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                        <a href="https://www.linkedin.com/company/movemate-llc" target="_blank">
+                            <i class="fab fa-linkedin-in"></i>
+                        </a>
+                    </div>
+                </div>
             </div>
 
             <div class="copyright">
@@ -528,4 +969,45 @@
         </div>
     </footer>
 </body>
-</html>
+</html><h4>Emil Guliyev</h4>
+                            <p>New Immigrant</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="testimonial-card">
+                    <i class="fas fa-quote-left quote-icon"></i>
+                    <div class="stars">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">"The team at MoveMate is incredibly professional. They guided me through everything from paperwork to setting up my new home. Highly recommended!"</p>
+                    <div class="testimonial-author">
+                        <div class="author-image">
+                            <img src="img/javad.jpg" alt="Javad Javadov">
+                        </div>
+                        <div class="author-info">
+                            <h4>Javad Javadov</h4>
+                            <p>New Immigrant</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="testimonial-card">
+                    <i class="fas fa-quote-left quote-icon"></i>
+                    <div class="stars">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">"Moving to a new country was daunting, but MoveMate made it so much simpler. Their service is reliable and trustworthy."</p>
+                    <div class="testimonial-author">
+                        <div class="author-image">
+                            <img src="img/mushviq.jpg" alt="Mushvig Babirov">
+                        </div>
+                        <div class="author-info">
