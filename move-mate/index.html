@@ -1,675 +1,1212 @@
 <!DOCTYPE html>
 <html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoveMate – Start Your American Journey with Us!</title>
+    <link rel="icon" type="image/png" href="img/favicon.png">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    <head>
-        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3719459726247715"
-     crossorigin="anonymous"></script>
-        <meta charset="utf-8">
-        <link rel="icon" type="image/png" href="img/favicon.png">
-        <title>MoveMate – Start Your American Journey with Us!</title>
-        <meta content="width=device-width, initial-scale=1.0" name="viewport">
-        <meta content="" name="keywords">
-        <meta content="" name="description">
+        :root {
+            --primary: #f59e0b;
+            --primary-dark: #dc2626;
+            --secondary: #fbbf24;
+            --accent: #fb923c;
+            --dark: #1e293b;
+            --light: #fef3c7;
+            --gray: #64748b;
+            --success: #10b981;
+        }
 
-        <!-- Google Web Fonts -->
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Poppins:wght@200;300;400;500;600&display=swap" rel="stylesheet"> 
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--dark);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
 
-        <!-- Icon Font Stylesheet -->
-        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css"/>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet">
+        .top-bar {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #dc2626 100%);
+            color: white;
+            padding: 12px 0;
+            font-size: 14px;
+        }
 
-        <!-- Libraries Stylesheet -->
-        <link href="lib/animate/animate.min.css" rel="stylesheet">
-        <link href="lib/owlcarousel/assets/owl.carousel.min.css" rel="stylesheet">
+        .top-bar-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
 
+        .contact-info {
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+        }
 
-        <!-- Customized Bootstrap Stylesheet -->
-        <link href="css/bootstrap.min.css" rel="stylesheet">
+        .contact-info a {
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: opacity 0.3s;
+            font-weight: 500;
+        }
 
-        <!-- Template Stylesheet -->
-        <link href="css/style.css" rel="stylesheet">
-    </head>
+        .contact-info a:hover {
+            opacity: 0.8;
+        }
 
-    <body>
+        .social-links {
+            display: flex;
+            gap: 10px;
+        }
 
-        <!-- Spinner Start -->
-        <div id="spinner" class="show bg-white position-fixed translate-middle w-100 vh-100 top-50 start-50 d-flex align-items-center justify-content-center">
-            <div class="spinner-border text-secondary" style="width: 3rem; height: 3rem;" role="status">
-                <span class="sr-only">Loading...</span>
+        .social-links a {
+            width: 35px;
+            height: 35px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .social-links a:hover {
+            background: white;
+            color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        nav {
+            background: white;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .nav-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 80px;
+        }
+
+        .logo img {
+            height: 50px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 40px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--dark);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+            transition: color 0.3s;
+            position: relative;
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--primary);
+            transition: width 0.3s;
+        }
+
+        .nav-links a:hover::after,
+        .nav-links a.active::after {
+            width: 100%;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--primary);
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-block;
+        }
+
+        .btn-outline {
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            background: transparent;
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #dc2626 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(245, 158, 11, 0.5);
+        }
+
+        .mobile-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--dark);
+            cursor: pointer;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #dc2626 100%);
+            padding: 100px 20px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            top: -200px;
+            right: -150px;
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+            bottom: -100px;
+            left: -100px;
+        }
+
+        .hero-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-text h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 56px;
+            line-height: 1.2;
+            margin-bottom: 25px;
+            font-weight: 800;
+        }
+
+        .hero-text p {
+            font-size: 20px;
+            margin-bottom: 35px;
+            opacity: 0.95;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn-large {
+            padding: 18px 45px;
+            font-size: 16px;
+        }
+
+        .btn-white {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-white:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+        }
+
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-top: 50px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-number {
+            font-size: 36px;
+            font-weight: 800;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+            font-weight: 600;
+        }
+
+        .hero-image {
+            position: relative;
+        }
+
+        .hero-image img {
+            width: 100%;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .about {
+            padding: 100px 20px;
+            background: white;
+        }
+
+        .about-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
+        }
+
+        .about-images {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .about-images img {
+            width: 100%;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .about-images img:first-child {
+            grid-column: 1 / 3;
+        }
+
+        .section-tag {
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+        }
+
+        .section-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 42px;
+            line-height: 1.3;
+            margin-bottom: 25px;
+            color: var(--dark);
+            font-weight: 800;
+        }
+
+        .about-text p {
+            color: var(--gray);
+            margin-bottom: 30px;
+            font-size: 17px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin: 35px 0;
+        }
+
+        .feature-item {
+            display: flex;
+            gap: 15px;
+        }
+
+        .feature-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .feature-text h4 {
+            margin-bottom: 5px;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .feature-text p {
+            font-size: 14px;
+            color: var(--gray);
+            margin: 0;
+        }
+
+        .contact-box {
+            background: #fef3c7;
+            padding: 30px;
+            border-radius: 15px;
+            margin-top: 30px;
+        }
+
+        .contact-box h4 {
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .contact-methods a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+            color: var(--dark);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s;
+        }
+
+        .contact-methods a:hover {
+            color: var(--primary);
+        }
+
+        .services {
+            padding: 100px 20px;
+            background: #fafafa;
+        }
+
+        .services-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin-top: 60px;
+        }
+
+        .service-card {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 20px;
+            transition: all 0.3s;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            border: 2px solid #f3f4f6;
+        }
+
+        .service-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(245, 158, 11, 0.2);
+            border-color: var(--primary);
+        }
+
+        .service-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 25px;
+            color: white;
+            font-size: 32px;
+        }
+
+        .service-card h3 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .service-card p {
+            color: var(--gray);
+            font-size: 15px;
+        }
+
+        .packages {
+            padding: 100px 20px;
+            background: white;
+        }
+
+        .packages-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .packages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 40px;
+            margin-top: 60px;
+        }
+
+        .package-card {
+            background: white;
+            border-radius: 25px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            position: relative;
+            border: 3px solid transparent;
+        }
+
+        .package-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .package-card.featured {
+            border-color: var(--primary);
+        }
+
+        .popular-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: white;
+            padding: 10px 25px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            border-bottom-left-radius: 15px;
+        }
+
+        .package-header {
+            padding: 40px 30px;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+        }
+
+        .package-header h3 {
+            font-size: 28px;
+            margin-bottom: 15px;
+            font-weight: 800;
+        }
+
+        .package-header p {
+            opacity: 0.9;
+        }
+
+        .package-body {
+            padding: 40px 30px;
+            text-align: left;
+        }
+
+        .package-features {
+            list-style: none;
+            margin-bottom: 30px;
+        }
+
+        .package-features li {
+            padding: 12px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            color: var(--gray);
+        }
+
+        .package-features li i {
+            color: var(--success);
+            margin-top: 3px;
+            flex-shrink: 0;
+            font-size: 16px;
+        }
+
+        .testimonials {
+            padding: 100px 20px;
+            background: #fafafa;
+        }
+
+        .testimonials-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .testimonials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 40px;
+            margin-top: 60px;
+        }
+
+        .testimonial-card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            position: relative;
+        }
+
+        .quote-icon {
+            font-size: 40px;
+            color: var(--primary);
+            opacity: 0.2;
+            position: absolute;
+            top: 20px;
+            left: 30px;
+        }
+
+        .testimonial-text {
+            margin-bottom: 25px;
+            color: var(--gray);
+            font-style: italic;
+            position: relative;
+            z-index: 1;
+        }
+
+        .testimonial-author {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .author-image {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            overflow: hidden;
+        }
+
+        .author-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .author-info h4 {
+            margin-bottom: 5px;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .author-info p {
+            color: var(--gray);
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .stars {
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+
+        footer {
+            background: var(--dark);
+            color: white;
+            padding: 60px 20px 30px;
+        }
+
+        .footer-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 50px;
+            margin-bottom: 40px;
+        }
+
+        .footer-section h3 {
+            margin-bottom: 25px;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .footer-section p {
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.8;
+        }
+
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 12px;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            transition: color 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary);
+        }
+
+        .footer-social {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .footer-social a {
+            width: 45px;
+            height: 45px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .footer-social a:hover {
+            background: var(--primary);
+            transform: translateY(-3px);
+        }
+
+        .copyright {
+            text-align: center;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        @media (max-width: 968px) {
+            .nav-links,
+            .nav-buttons {
+                display: none;
+            }
+
+            .mobile-toggle {
+                display: block;
+            }
+
+            .hero-content,
+            .about-content {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .hero-text h1 {
+                font-size: 40px;
+            }
+
+            .section-title {
+                font-size: 32px;
+            }
+
+            .packages-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .hero-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-large {
+                padding: 15px 35px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div class="top-bar-content">
+            <div class="contact-info">
+                <a href="mailto:sales@movemate.me">
+                    <i class="fas fa-envelope"></i>sales@movemate.me
+                </a>
+                <a href="tel:+15713739374">
+                    <i class="fas fa-phone-alt"></i>+1 571 373 9374
+                </a>
+                <a href="tel:+15715647755">
+                    <i class="fas fa-phone-alt"></i>+1 571 564 7755
+                </a>
+                <a href="https://wa.me/15713739374" target="_blank" style="color: white; font-weight: 700;">
+                    <i class="fab fa-whatsapp"></i>WhatsApp Us
+                </a>
             </div>
-        </div>
-        <!-- Spinner End -->
-
-
-<!-- Topbar Start -->
-<div class="container-fluid bg-primary px-5 d-none d-lg-block">
-    <div class="row gx-0 align-items-center">
-        <div class="col-lg-8 text-center text-lg-start mb-lg-0">
-            <div class="d-flex">
-                <!-- Email -->
-                <a href="mailto:sales@movemate.me" style="color: white;" class="me-4">
-                    <i class="fas fa-envelope me-2" style="color: white;"></i>sales@movemate.me
-                </a>
-                <!-- Phone Numbers -->
-                <a href="tel:+15715647755" style="color: white;">
-                    <i class="fas fa-phone-alt me-2" style="color: white;"></i>+1 571 564-7755
-                </a>
-                <!-- WhatsApp -->
-                <a href="https://wa.me/15715647755" target="_blank" style="color: #25D366; font-weight: bold; text-decoration: none;" class="ms-4">
-                    <i class="fab fa-whatsapp me-2" style="color: #25D366;"></i>WhatsApp Us
-                </a>
-            </div>
-        </div>
-        <div class="col-lg-4 text-center text-lg-end">
-            <div class="d-inline-flex align-items-center" style="height: 45px;">
-                <!-- Social Media Links -->
-                <a class="btn btn-sm btn-outline-light btn-square rounded-circle me-2" href="https://www.facebook.com/movematellc" target="_blank">
-                    <i class="fab fa-facebook-f fw-normal" style="color: white;"></i>
-                </a>
-                <a class="btn btn-sm btn-outline-light btn-square rounded-circle me-2" href="https://www.linkedin.com/company/movemate-llc" target="_blank">
-                    <i class="fab fa-linkedin-in fw-normal" style="color: white;"></i>
-                </a>
-                <a class="btn btn-sm btn-outline-light btn-square rounded-circle me-2" href="https://www.instagram.com/movemate_llc" target="_blank">
-                    <i class="fab fa-instagram fw-normal" style="color: white;"></i>
-                </a>                     
+            <div class="social-links">
+                <a href="https://www.facebook.com/movematellc" target="_blank"><i class="fab fa-facebook-f"></i></a>
+                <a href="https://www.linkedin.com/company/movemate-llc" target="_blank"><i class="fab fa-linkedin-in"></i></a>
+                <a href="https://www.instagram.com/movemate_llc" target="_blank"><i class="fab fa-instagram"></i></a>
             </div>
         </div>
     </div>
-</div>
-<!-- Topbar End -->
 
-
-      <!-- Navbar & Hero Start -->
-<div class="container-fluid nav-bar p-0">
-    <nav class="navbar navbar-expand-lg navbar-light bg-white px-4 px-lg-5 py-3 py-lg-0">
-        <!-- Logo -->
-        <a href="" class="navbar-brand p-0">
-            <h1 class="display-5 text-secondary m-0">
-                <img src="img/brand-logo.png" class="img-fluid" alt="">
-            </h1>
-        </a>
-        
-        <!-- Navbar Toggle (for mobile view) -->
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
-            <span class="fa fa-bars"></span>
-        </button>
-        
-        <!-- Navbar Links -->
-        <div class="collapse navbar-collapse" id="navbarCollapse">
-            <!-- Centered Navigation Links -->
-            <div class="navbar-nav mx-auto py-0">
-                <a href="index.html" class="nav-item nav-link active" style="font-weight: bold; font-size: 18px; padding: 10px 20px;">Home</a>
-                <a href="service.html" class="nav-item nav-link" style="font-weight: bold; font-size: 18px; padding: 10px 20px;">Service</a>
-                <a href="blog.html" class="nav-item nav-link" style="font-weight: bold; font-size: 18px; padding: 10px 20px;">Blog</a>
-                <a href="about.html" class="nav-item nav-link" style="font-weight: bold; font-size: 18px; padding: 10px 20px;">About</a>
-                <a href="contact.html" class="nav-item nav-link" style="font-weight: bold; font-size: 18px; padding: 10px 20px;">Contact</a>
+    <nav>
+        <div class="nav-content">
+            <div class="logo">
+                <img src="img/brand-logo.png" alt="MoveMate">
             </div>
-            
-            <!-- Right-Aligned Buttons for Login and Sign Up -->
-            <div class="d-flex">
-                <a href="login.html" class="btn btn-outline-primary me-2" style="font-weight: bold; font-size: 18px; padding: 10px 20px;">Login</a>
-                <a href="signup.html" class="btn btn-primary" style="font-weight: bold; font-size: 18px; padding: 10px 20px;">Sign Up</a>
+            <ul class="nav-links">
+                <li><a href="index.html" class="active">Home</a></li>
+                <li><a href="service.html">Services</a></li>
+                <li><a href="blog.html">Blog</a></li>
+                <li><a href="about.html">About</a></li>
+                <li><a href="contact.html">Contact</a></li>
+            </ul>
+            <div class="nav-buttons">
+                <a href="login.html" class="btn btn-outline">Login</a>
+                <a href="signup.html" class="btn btn-primary">Sign Up</a>
             </div>
+            <button class="mobile-toggle"><i class="fas fa-bars"></i></button>
         </div>
     </nav>
-</div>
-<!-- Navbar & Hero End -->
 
-        <!-- Modal Search Start -->
-        <div class="modal fade" id="searchModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-fullscreen">
-                <div class="modal-content rounded-0">
-                    <div class="modal-header">
-                        <h4 class="modal-title text-secondary mb-0" id="exampleModalLabel">Search by keyword</h4>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-text">
+                <h1>Start Your American Journey with Confidence</h1>
+                <p>MoveMate provides comprehensive relocation support to help immigrants seamlessly transition to life in the United States.</p>
+                <div class="hero-buttons">
+                    <a href="signup.html" class="btn btn-white btn-large">Get Started</a>
+                    <a href="service.html" class="btn btn-outline btn-large" style="color: white; border-color: white;">Our Services</a>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <span class="stat-number">16+</span>
+                        <span class="stat-label">Happy Clients</span>
                     </div>
-                    <div class="modal-body d-flex align-items-center">
-                        <div class="input-group w-75 mx-auto d-flex">
-                            <input type="search" class="form-control p-3" placeholder="keywords" aria-describedby="search-icon-1">
-                            <span id="search-icon-1" class="input-group-text p-3"><i class="fa fa-search"></i></span>
+                    <div class="stat-item">
+                        <span class="stat-number">12+</span>
+                        <span class="stat-label">Services Offered</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">100%</span>
+                        <span class="stat-label">Satisfaction Rate</span>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-image">
+                <img src="img/about-3.jpg" alt="American Dream">
+            </div>
+        </div>
+    </section>
+
+    <section class="about">
+        <div class="about-content">
+            <div class="about-images">
+                <img src="img/about-3.jpg" alt="MoveMate Services">
+                <img src="img/carousel-17.jpg" alt="Settlement Support">
+            </div>
+            <div class="about-text">
+                <div class="section-tag">WELCOME TO MOVEMATE</div>
+                <h2 class="section-title">Your Companion for a Seamless Start in the USA</h2>
+                <p>MoveMate is a comprehensive relocation and integration service designed to support immigrants as they begin their journey in the United States.</p>
+                <div class="features-grid">
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-map-marked-alt"></i></div>
+                        <div class="feature-text">
+                            <h4>Comprehensive Support</h4>
+                            <p>End-to-end assistance</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-passport"></i></div>
+                        <div class="feature-text">
+                            <h4>Tailored Solutions</h4>
+                            <p>Flexible options</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-check-circle"></i></div>
+                        <div class="feature-text">
+                            <h4>Expert Guidance</h4>
+                            <p>Professional advice</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="fas fa-clock"></i></div>
+                        <div class="feature-text">
+                            <h4>Fast & Reliable</h4>
+                            <p>Dependable processes</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="contact-box">
+                    <h4>Have Questions?</h4>
+                    <div class="contact-methods">
+                        <a href="https://wa.me/15713739374" target="_blank" style="color: #25D366;">
+                            <i class="fab fa-whatsapp"></i>WhatsApp Us
+                        </a>
+                        <a href="tel:+15713739374"><i class="fas fa-phone-alt"></i>+1 571 373 9374</a>
+                        <a href="mailto:sales@movemate.me"><i class="fas fa-envelope"></i>sales@movemate.me</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="services">
+        <div class="services-content">
+            <div class="section-tag">OUR SERVICES</div>
+            <h2 class="section-title">Tailored Services to Meet Your Needs</h2>
+            <p style="color: var(--gray); max-width: 700px; margin: 0 auto;">Our customized offerings ensure you receive the support needed to begin your journey with confidence.</p>
+            <div class="services-grid">
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-home"></i></div>
+                    <h3>Apartment Search</h3>
+                    <p>Find your perfect home</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-calendar-check"></i></div>
+                    <h3>Apartment Reservation</h3>
+                    <p>Secure your residence</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-plane-arrival"></i></div>
+                    <h3>Airport Pickup</h3>
+                    <p>Safe transfer service</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-mobile-alt"></i></div>
+                    <h3>SIM Card Setup</h3>
+                    <p>Stay connected</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-university"></i></div>
+                    <h3>Bank Account</h3>
+                    <p>Financial setup</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-car"></i></div>
+                    <h3>Driver's License</h3>
+                    <p>Preparation support</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-file-alt"></i></div>
+                    <h3>Legal Documentation</h3>
+                    <p>Important paperwork</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-school"></i></div>
+                    <h3>School Registration</h3>
+                    <p>Children's education</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-notes-medical"></i></div>
+                    <h3>Health Insurance</h3>
+                    <p>Coverage assistance</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-gavel"></i></div>
+                    <h3>Legal Support</h3>
+                    <p>Connect with services</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-briefcase"></i></div>
+                    <h3>Job Opportunities</h3>
+                    <p>DoorDash, Uber & more</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-headset"></i></div>
+                    <h3>24/7 Consultation</h3>
+                    <p>Always here to help</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="packages">
+        <div class="packages-content">
+            <div class="section-tag">PRICING PACKAGES</div>
+            <h2 class="section-title">Choose the Right Plan for Your Journey</h2>
+            <p style="color: var(--gray); max-width: 700px; margin: 0 auto;">Select from our carefully designed packages to match your specific relocation needs.</p>
+            <div class="packages-grid">
+                <div class="package-card">
+                    <div class="package-header">
+                        <h3>Basic Package</h3>
+                        <p>Essential services for your arrival</p>
+                    </div>
+                    <div class="package-body">
+                        <ul class="package-features">
+                            <li><i class="fas fa-check-circle"></i><span>Apartment search assistance</span></li>
+                            <li><i class="fas fa-check-circle"></i><span>Apartment reservation</span></li>
+                            <li><i class="fas fa-check-circle"></i><span>Airport pick-up & transfer</span></li>
+                            <li><i class="fas fa-check-circle"></i><span>Mobile SIM card arrangement</span></li>
+                            <li><i class="fas fa-check-circle"></i><span>Bank account setup</span></li>
+                            <li><i class="fas fa-check-circle"></i><span>Additional consultation & support</span></li>
+                        </ul>
+                        <a href="service.html" class="btn btn-primary" style="width: 100%; text-align: center;">Learn More</a>
+                    </div>
+                </div>
+                <div class="package-card featured">
+                    <span class="popular-badge">Most Popular</span>
+                    <div class="package-header">
+                        <h3>Premium Package</h3>
+                        <p>Complete integration support</p>
+                    </div>
+                    <div class="package-body">
+                        <ul class="package-features">
+                            <li><i class="fas fa-check-circle"></i><span>Everything in Basic Package</span></li>
+                            <li><i class="fas fa-check-circle"></i><span>Driver's license preparation</span></li>
+                            <li><i class="fas fa-check-circle"></i><span>Legal documentation assistance</span></li>
+                            <li><i class="fas fa-check-circle"></i><span>Children's school registration</span></li>
+                            <li><i class="fas fa-check-circle"></i><span>Health insurance assistance</span></li>
+                            <li><i class="fas fa-check-circle"></i><span>Legal support services</span></li>
+                            <li><i class="fas fa-check-circle"></i><span>Initial job opportunities</span></li>
+                        </ul>
+                        <a href="service.html" class="btn btn-primary" style="width: 100%; text-align: center;">Learn More</a>
+                    </div>
+                </div>
+                <div class="package-card">
+                    <div class="package-header">
+                        <h3>Custom Package</h3>
+                        <p>Tailored to your unique needs</p>
+                    </div>
+                    <div class="package-body">
+                        <p style="margin-bottom: 30px; color: var(--gray);">Services are customized based on your specific requirements. We'll create the perfect package for you.</p>
+                        <ul class="package-features">
+                            <li><i class="fas fa-check-circle"></i><span>Flexible service selection</span></li>
+                            <li><i class="fas fa-check-circle"></i><span>Personalized consultation</span></li>
+                            <li><i class="fas fa-check-circle"></i><span>Custom pricing</span></li>
+                            <li><i class="fas fa-check-circle"></i><span>Priority support access</span></li>
+                        </ul>
+                        <a href="contact.html" class="btn btn-primary" style="width: 100%; text-align: center;">Contact Us</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="services" style="background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);">
+        <div class="services-content">
+            <div class="section-tag">WHY CHOOSE US</div>
+            <h2 class="section-title">Your Trusted Partner in Overcoming Challenges</h2>
+            <p style="color: var(--gray); max-width: 800px; margin: 0 auto;">Moving to a new country comes with various challenges. We provide comprehensive support to ensure your journey starts smoothly.</p>
+            <div class="services-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-top: 60px;">
+                <div class="service-card">
+                    <div class="service-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3>Scam Protection</h3>
+                    <p>Navigate potential risks of fraud with our trusted support in every step.</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                        <i class="fas fa-home"></i>
+                    </div>
+                    <h3>Secure Housing</h3>
+                    <p>Find safe and reliable housing with peace of mind for your family.</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                        <i class="fas fa-hands-helping"></i>
+                    </div>
+                    <h3>Avoiding Misguidance</h3>
+                    <p>Prevent falling victim to misinformation with our trusted advisors.</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon" style="background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                    <h3>Psychological Support</h3>
+                    <p>Emotional support resources to help you feel at home and at ease.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="testimonials">
+        <div class="testimonials-content">
+            <div class="section-tag">CLIENT REVIEWS</div>
+            <h2 class="section-title">What Our Clients Say</h2>
+            <p style="color: var(--gray); max-width: 700px; margin: 0 auto;">Our clients' satisfaction is our top priority. Here's what they have to say about their experience with MoveMate.</p>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <i class="fas fa-quote-left quote-icon"></i>
+                    <div class="stars">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">"MoveMate made my transition to the U.S. so much easier. From finding an apartment to setting up my bank account, they were there every step of the way!"</p>
+                    <div class="testimonial-author">
+                        <div class="author-image">
+                            <img src="img/emin.jpg" alt="Emil Guliyev">
+                        </div>
+                        <div class="author-info">
+                            <h4>Emil Guliyev</h4>
+                            <p>New Immigrant</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <i class="fas fa-quote-left quote-icon"></i>
+                    <div class="stars">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">"The team at MoveMate is incredibly professional and attentive. They guided me through everything from visa paperwork to setting up my new home."</p>
+                    <div class="testimonial-author">
+                        <div class="author-image">
+                            <img src="img/javad.jpg" alt="Javad Javadov">
+                        </div>
+                        <div class="author-info">
+                            <h4>Javad Javadov</h4>
+                            <p>New Immigrant</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <i class="fas fa-quote-left quote-icon"></i>
+                    <div class="stars">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">"Moving to a new country was daunting, but MoveMate made it so much simpler. Their service is reliable and trustworthy."</p>
+                    <div class="testimonial-author">
+                        <div class="author-image">
+                            <img src="img/mushviq.jpg" alt="Mushvig Babirov">
+                        </div>
+                        <div class="author-info">
+                            <h4>Mushvig Babirov</h4>
+                            <p>New Immigrant</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- Modal Search End -->
+    </section>
 
-
-
-<!-- About Start -->
-<div class="container-fluid py-5">
-    <div class="container py-5">
-        <div class="row g-5">
-            <div class="col-xl-5 wow fadeInLeft" data-wow-delay="0.1s">
-                <div class="bg-light rounded">
-                    <img src="img/about-3.jpg" class="img-fluid w-100" style="margin-bottom: -7px;" alt="Image">
-                    <img src="img/carousel-17.jpg" class="img-fluid w-100" style="margin-bottom: -7px;" alt="Image">
-                </div>
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>Contact Info</h3>
+                <ul class="footer-links">
+                    <li><a href="#"><i class="fas fa-map-marker-alt"></i> Fairfax, VA, US</a></li>
+                    <li><a href="mailto:sales@movemate.me"><i class="fas fa-envelope"></i> sales@movemate.me</a></li>
+                    <li><a href="tel:+15713739374"><i class="fas fa-phone"></i> +1 571 373 9374</a></li>
+                    <li><a href="tel:+15715647755"><i class="fas fa-phone"></i> +1 571 564 7755</a></li>
+                </ul>
             </div>
-            <div class="col-xl-7 wow fadeInRight" data-wow-delay="0.3s">
-                <h5 class="sub-title pe-3">Welcome to MoveMate!</h5>
-                <h1 class="display-5 mb-4">Your Companion for a Seamless Start in the USA.</h1>
-                <p class="mb-4">MoveMate is a comprehensive relocation and integration service designed to support immigrants as they begin their journey in the United States. Join us and start building your American dream today!</p>
-                <div class="row gy-4 align-items-center">
-                    <div class="col-12 col-sm-6 d-flex align-items-center">
-                        <i class="fas fa-map-marked-alt fa-3x text-secondary"></i>
-                        <h5 class="ms-4">Comprehensive Support for Newcomers</h5>
-                    </div>
-                    <div class="col-12 col-sm-6 d-flex align-items-center">
-                        <i class="fas fa-passport fa-3x text-secondary"></i>
-                        <h5 class="ms-4">Flexible and Tailored Settlement Options</h5>
-                    </div>
-                    <div class="col-4 col-md-3">
-                        <div class="bg-light text-center rounded p-3">
-                            <div class="mb-2">
-                                <i class="fas fa-ticket-alt fa-4x text-primary"></i>
-                            </div>
-                            <h1 class="display-5 fw-bold mb-2">100+</h1>
-                            <p class="text-muted mb-0">Satisfied Customers</p>
-                        </div>
-                    </div>
-                    <div class="col-8 col-md-9">
-                        <div class="mb-5">
-                            <p class="text-primary h6 mb-3"><i class="fa fa-check-circle text-secondary me-2"></i> Dedicated Support for Every Step</p>
-                            <p class="text-primary h6 mb-3"><i class="fa fa-check-circle text-secondary me-2"></i> Fast and Dependable Processes</p>
-                            <p class="text-primary h6 mb-3"><i class="fa fa-check-circle text-secondary me-2"></i> Precise Advice from Experts</p>
-                        </div>
-                        <div class="d-flex flex-column justify-content-center"> 
-                            <span class="text-primary">Have any questions?</span><br>
-                        
-                            <a href="https://wa.me/+15715647755" target="_blank" class="fw-bold fs-5" style="letter-spacing: 2px; text-decoration: none; color: #25D366;">
-                                <i class="fab fa-whatsapp me-2"></i>WhatsApp Us
-                            </a><br>
-                        
-                            <a href="tel:+15715647755" class="text-secondary fw-bold fs-5" style="letter-spacing: 2px; text-decoration: none;">
-                                <i class="fas fa-phone-alt me-2"></i>+1 (571) 564-7755
-                            </a><br>
-                            
-                            <a href="mailto:sales@movemate.me" class="text-secondary fw-bold fs-5" style="letter-spacing: 2px; text-decoration: none;">
-                                <i class="fas fa-envelope me-2"></i>Email Us
-                            </a><br>
-                        </div>
-                                
-                            </div>
-                        </div>
-                    </div>
+            <div class="footer-section">
+                <h3>Quick Links</h3>
+                <ul class="footer-links">
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="about.html">About Us</a></li>
+                    <li><a href="service.html">Services</a></li>
+                    <li><a href="blog.html">Blog</a></li>
+                    <li><a href="contact.html">Contact</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Follow Us</h3>
+                <p>Stay connected through our social media channels.</p>
+                <div class="footer-social">
+                    <a href="https://www.facebook.com/movematellc" target="_blank"><i class="fab fa-facebook-f"></i></a>
+                    <a href="https://www.instagram.com/movemate_llc" target="_blank"><i class="fab fa-instagram"></i></a>
+                    <a href="https://www.linkedin.com/company/104455747/admin/dashboard/" target="_blank"><i class="fab fa-linkedin-in"></i></a>
                 </div>
             </div>
         </div>
-    </div>
-</div>
-<!-- About End -->
-
-        
-<!-- Features Start -->
-<div class="container-fluid features overflow-hidden py-5">
-    <div class="container">
-        <div class="section-title text-center mb-5 wow fadeInUp" data-wow-delay="0.1s">
-            <div class="sub-style">
-                <h5 class="sub-title text-primary px-3">Our Services</h5>
-            </div>
-            <h1 class="display-5 mb-4">Tailored Services to Meet Your Needs</h1>
-            <p class="mb-0">Our customized offerings ensure that you receive the support you need to begin your journey with confidence and ease.</p>
+        <div class="copyright">
+            <p>&copy; 2025 MoveMate LLC. All rights reserved.</p>
         </div>
-        <div class="row g-4 justify-content-center text-center">
-            <!-- Apartment Search -->
-            <div class="col-md-6 col-lg-6 col-xl-3 wow fadeInUp" data-wow-delay="0.1s">
-                <div class="feature-item text-center p-4">
-                    <div class="feature-icon p-3 mb-4">
-                        <i class="fas fa-home fa-4x text-primary"></i>
-                    </div>
-                    <div class="feature-content d-flex flex-column">
-                        <h5 class="mb-3">Apartment Search</h5>
-                    </div>
-                </div>
-            </div>
-            <!-- Apartment Reservation -->
-            <div class="col-md-6 col-lg-6 col-xl-3 wow fadeInUp" data-wow-delay="0.3s">
-                <div class="feature-item text-center p-4">
-                    <div class="feature-icon p-3 mb-4">
-                        <i class="fas fa-calendar-check fa-4x text-primary"></i>
-                    </div>
-                    <div class="feature-content d-flex flex-column">
-                        <h5 class="mb-3">Apartment Reservation</h5>
-                    </div>
-                </div>
-            </div>
-            <!-- Airport Pick-up and Transfer -->
-            <div class="col-md-6 col-lg-6 col-xl-3 wow fadeInUp" data-wow-delay="0.5s">
-                <div class="feature-item text-center p-4">
-                    <div class="feature-icon p-3 mb-4">
-                        <i class="fas fa-plane-arrival fa-4x text-primary"></i>
-                    </div>
-                    <div class="feature-content d-flex flex-column">
-                        <h5 class="mb-3">Airport Pick-up and Transfer to Residence</h5>
-                    </div>
-                </div>
-            </div>
-            <!-- Mobile SIM Card Arrangement -->
-            <div class="col-md-6 col-lg-6 col-xl-3 wow fadeInUp" data-wow-delay="0.7s">
-                <div class="feature-item text-center p-4">
-                    <div class="feature-icon p-3 mb-4">
-                        <i class="fas fa-mobile-alt fa-4x text-primary"></i>
-                    </div>
-                    <div class="feature-content d-flex flex-column">
-                        <h5 class="mb-3">Mobile SIM Card Arrangement</h5>
-                    </div>
-                </div>
-            </div>
-            <!-- Bank Account Setup -->
-            <div class="col-md-6 col-lg-6 col-xl-3 wow fadeInUp" data-wow-delay="0.9s">
-                <div class="feature-item text-center p-4">
-                    <div class="feature-icon p-3 mb-4">
-                        <i class="fas fa-university fa-4x text-primary"></i>
-                    </div>
-                    <div class="feature-content d-flex flex-column">
-                        <h5 class="mb-3">Bank Account Setup</h5>
-                    </div>
-                </div>
-            </div>
-            <!-- Additional Consultation and Support -->
-            <div class="col-md-6 col-lg-6 col-xl-3 wow fadeInUp" data-wow-delay="1.1s">
-                <div class="feature-item text-center p-4">
-                    <div class="feature-icon p-3 mb-4">
-                        <i class="fas fa-headset fa-4x text-primary"></i>
-                    </div>
-                    <div class="feature-content d-flex flex-column">
-                        <h5 class="mb-3">Additional Consultation and Support</h5>
-                    </div>
-                </div>
-            </div>
-            <!-- Driver's License Preparation -->
-            <div class="col-md-6 col-lg-6 col-xl-3 wow fadeInUp" data-wow-delay="1.3s">
-                <div class="feature-item text-center p-4">
-                    <div class="feature-icon p-3 mb-4">
-                        <i class="fas fa-car fa-4x text-primary"></i>
-                    </div>
-                    <div class="feature-content d-flex flex-column">
-                        <h5 class="mb-3">Driver's License Preparation</h5>
-                    </div>
-                </div>
-            </div>
-            <!-- Assistance with Legal Documentation -->
-            <div class="col-md-6 col-lg-6 col-xl-3 wow fadeInUp" data-wow-delay="1.5s">
-                <div class="feature-item text-center p-4">
-                    <div class="feature-icon p-3 mb-4">
-                        <i class="fas fa-file-alt fa-4x text-primary"></i>
-                    </div>
-                    <div class="feature-content d-flex flex-column">
-                        <h5 class="mb-3">Assistance with Legal Documentation</h5>
-                    </div>
-                </div>
-            </div>
-            <!-- Support for Children's School Registration -->
-            <div class="col-md-6 col-lg-6 col-xl-3 wow fadeInUp" data-wow-delay="1.7s">
-                <div class="feature-item text-center p-4">
-                    <div class="feature-icon p-3 mb-4">
-                        <i class="fas fa-school fa-4x text-primary"></i>
-                    </div>
-                    <div class="feature-content d-flex flex-column">
-                        <h5 class="mb-3">Support for Children's School Registration</h5>
-                    </div>
-                </div>
-            </div>
-            <!-- Assistance with Health Insurance -->
-            <div class="col-md-6 col-lg-6 col-xl-3 wow fadeInUp" data-wow-delay="1.9s">
-                <div class="feature-item text-center p-4">
-                    <div class="feature-icon p-3 mb-4">
-                        <i class="fas fa-notes-medical fa-4x text-primary"></i>
-                    </div>
-                    <div class="feature-content d-flex flex-column">
-                        <h5 class="mb-3">Assistance with Health Insurance</h5>
-                    </div>
-                </div>
-            </div>
-            <!-- Help Finding Legal Support Services -->
-            <div class="col-md-6 col-lg-6 col-xl-3 wow fadeInUp" data-wow-delay="2.1s">
-                <div class="feature-item text-center p-4">
-                    <div class="feature-icon p-3 mb-4">
-                        <i class="fas fa-gavel fa-4x text-primary"></i>
-                    </div>
-                    <div class="feature-content d-flex flex-column">
-                        <h5 class="mb-3">Help Finding Legal Support Services</h5>
-                    </div>
-                </div>
-            </div>
-            <!-- Assistance with Initial Job Opportunities -->
-            <div class="col-md-6 col-lg-6 col-xl-3 wow fadeInUp" data-wow-delay="2.3s">
-                <div class="feature-item text-center p-4">
-                    <div class="feature-icon p-3 mb-4">
-                        <i class="fas fa-briefcase fa-4x text-primary"></i>
-                    </div>
-                    <div class="feature-content d-flex flex-column">
-                        <h5 class="mb-3">Assistance with Initial Job Opportunities (DoorDash, Uber, etc.)</h5>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<!-- Features End -->
+    </footer>
 
-
-
-<!-- Services Start -->
-<div class="container-fluid service overflow-hidden pt-5">
-    <div class="container py-5">
-        <div class="section-title text-center mb-5 wow fadeInUp" data-wow-delay="0.1s">
-            <div class="sub-style">
-                <h5 class="sub-title text-primary px-3">Our Service Packages</h5>
-            </div>
-            <h1 class="display-5 mb-4">Choose the Right Plan for Your Journey</h1>
-            <p class="mb-0 font-weight-bold">Our customized offerings ensure that you receive the support you need to begin your journey with confidence and ease.</p>
-        </div>
-        <div class="row g-4">
-            <!-- Basic Membership -->
-            <div class="col-lg-6 col-xl-4 wow fadeInUp" data-wow-delay="0.1s">
-                <div class="service-item">
-                    <div class="service-inner">
-                        <div class="service-img">
-                            <img src="img/service-1.jpg" class="img-fluid w-100 rounded" alt="Image">
-                        </div>
-                        <div class="service-title">
-                            <div class="service-title-name">
-                                <div class="bg-primary text-center rounded p-3 mx-5 mb-4">
-                                    <a href="#" class="h4 text-white mb-0">Basic Package</a>
-                                </div>
-                            </div>
-                            <div class="service-content pb-4">
-                                <div class="px-4">
-                                    <p class="mb-4">
-                                        <i class="fas fa-star text-primary"></i> <strong>Apartment search</strong><br>
-                                        <i class="fas fa-star text-primary"></i> <strong>Apartment reservation</strong><br>
-                                        <i class="fas fa-star text-primary"></i> <strong>Airport pick-up and transfer to residence</strong><br>
-                                        <i class="fas fa-star text-primary"></i> <strong>Mobile SIM card arrangement</strong><br>
-                                        <i class="fas fa-star text-primary"></i> <strong>Bank account setup</strong><br>
-                                        <i class="fas fa-star text-primary"></i> <strong>Additional consultation and support</strong><br>                                                                              
-                                    </p>
-                                    <a class="btn btn-primary border-secondary rounded-pill py-3 px-5" href="#">Explore More</a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Premium Membership -->
-            <div class="col-lg-6 col-xl-4 wow fadeInUp" data-wow-delay="0.3s">
-                <div class="service-item">
-                    <div class="service-inner">
-                        <div class="service-img">
-                            <img src="img/service-2.jpg" class="img-fluid w-100 rounded" alt="Image">
-                        </div>
-                        <div class="service-title">
-                            <div class="service-title-name">
-                                <div class="bg-primary text-center rounded p-3 mx-5 mb-4">
-                                    <a href="#" class="h4 text-white mb-0">Premium Package</a>
-                                </div>
-                            </div>
-                            <div class="service-content pb-4">
-                                <div class="px-4">
-                                    <p class="mb-4">
-                                        <i class="fas fa-star text-primary"></i> <strong>Apartment search</strong><br>
-                                        <i class="fas fa-star text-primary"></i> <strong>Apartment reservation</strong><br>
-                                        <i class="fas fa-star text-primary"></i> <strong>Airport pick-up and transfer to residence</strong><br>
-                                        <i class="fas fa-star text-primary"></i> <strong>Mobile SIM card arrangement</strong><br>
-                                        <i class="fas fa-star text-primary"></i> <strong>Assistance with Initial Job Opportunities</strong><br>
-                                        <i class="fas fa-star text-primary"></i> <strong>Bank account setup</strong><br>
-                                        <i class="fas fa-star text-primary"></i> <strong>Additional consultation and support</strong><br>
-                                        <i class="fas fa-star text-primary"></i> <strong>Driver's license preparation</strong><br>
-                                        <i class="fas fa-star text-primary"></i> <strong>Assistance with other legal documentation</strong><br>
-                                        <i class="fas fa-star text-primary"></i> <strong>Support for children's school registration</strong><br>
-                                        <i class="fas fa-star text-primary"></i> <strong>Assistance with health insurance</strong><br>
-                                        <i class="fas fa-star text-primary"></i> <strong>Help finding legal support services</strong><br>                                                                                                                    
-                                    </p>
-                                    <a class="btn btn-primary border-secondary rounded-pill text-white py-3 px-5" href="#">Explore More</a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Custom Membership -->
-            <div class="col-lg-6 col-xl-4 wow fadeInUp" data-wow-delay="0.5s">
-                <div class="service-item">
-                    <div class="service-inner">
-                        <div class="service-img">
-                            <img src="img/service-3.jpg" class="img-fluid w-100 rounded" alt="Image">
-                        </div>
-                        <div class="service-title">
-                            <div class="service-title-name">
-                                <div class="bg-primary text-center rounded p-3 mx-5 mb-4">
-                                    <a href="#" class="h4 text-white mb-0">Custom Package</a>
-                                </div>
-                            </div>
-                            <div class="service-content pb-4">
-                                <div class="px-4">
-                                    <p class="mb-4">
-                                        <strong>Services are tailored to your specific needs. Pricing and other details will be discussed with you based on the services you select.</strong>
-                                    </p>                                                                      
-                                    <a class="btn btn-primary border-secondary rounded-pill text-white py-3 px-5" href="#">Explore More</a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<!-- Services End -->
-
-<!-- Why Choose Us Start -->
-<div class="container-fluid features overflow-hidden bg-light py-5">
-    <div class="container py-5">
-        <div class="section-title text-center mb-5 wow fadeInUp" data-wow-delay="0.1s">
-            <div class="sub-style">
-                <h5 class="sub-title text-primary px-3">Why Choose Us</h5>
-            </div>
-            <h1 class="display-5 mb-4">Your Trusted Partner in Overcoming Relocation Challenges</h1>
-            <p class="mb-0 font-weight-bold">Moving to a new country comes with various challenges, from finding safe housing to avoiding scams. We provide comprehensive support to ensure your journey starts smoothly and securely.</p>
-        </div>
-        <div class="row g-4">
-            <!-- Scam Protection -->
-            <div class="col-lg-6 col-xl-3 wow fadeInUp" data-wow-delay="0.1s">
-                <div class="feature-item text-center p-4">
-                    <div class="feature-icon p-3 mb-4">
-                        <i class="fas fa-shield-alt fa-4x text-primary"></i>
-                    </div>
-                    <h4>Scam Protection</h4>
-                    <p>Our team helps you navigate the potential risks of scams and fraud, ensuring you have trusted support in every step.</p>
-                </div>
-            </div>
-            
-            <!-- Secure Housing Assistance -->
-            <div class="col-lg-6 col-xl-3 wow fadeInUp" data-wow-delay="0.3s">
-                <div class="feature-item text-center p-4">
-                    <div class="feature-icon p-3 mb-4">
-                        <i class="fas fa-home fa-4x text-primary"></i>
-                    </div>
-                    <h4>Secure Housing Assistance</h4>
-                    <p>We assist you in finding safe and reliable housing, providing peace of mind for you and your family in your new home.</p>
-                </div>
-            </div>
-            
-            <!-- Avoiding Misguidance -->
-            <div class="col-lg-6 col-xl-3 wow fadeInUp" data-wow-delay="0.5s">
-                <div class="feature-item text-center p-4">
-                    <div class="feature-icon p-3 mb-4">
-                        <i class="fas fa-hands-helping fa-4x text-primary"></i>
-                    </div>
-                    <h4>Avoiding Misguidance</h4>
-                    <p>Our trusted advisors prevent you from falling victim to misinformation or misguidance, helping you make informed decisions.</p>
-                </div>
-            </div>
-
-            <!-- Psychological Support -->
-            <div class="col-lg-6 col-xl-3 wow fadeInUp" data-wow-delay="0.7s">
-                <div class="feature-item text-center p-4">
-                    <div class="feature-icon p-3 mb-4">
-                        <i class="fas fa-heart fa-4x text-primary"></i>
-                    </div>
-                    <h4>Psychological Support</h4>
-                    <p>We understand the emotional impact of relocation. Our services include support resources to help you feel at home and at ease.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<!-- Why Choose Us End -->
-
-
-<!-- OUR CLIENTS REVIEWS Start -->
-<div class="container-fluid testimonial overflow-hidden pb-5">
-    <div class="container py-5">
-        <div class="section-title text-center mb-5 wow fadeInUp" data-wow-delay="0.1s">
-            <div class="sub-style">
-                <h5 class="sub-title text-primary px-3">OUR CLIENTS REVIEWS</h5>
-            </div>
-            <h1 class="display-5 mb-4">What Our Clients Say</h1>
-            <p class="mb-0">Our clients' satisfaction is our top priority. Here's what they have to say about their experience with MoveMate. We’re proud to have helped them transition smoothly to their new lives in the U.S.</p>
-        </div>
-        <div class="row text-center">
-
-            <!-- Testimonial 1 -->
-            <div class="col-lg-4 col-md-6 mb-4">
-                <div class="testimonial-item">
-                    <div class="rounded-circle mx-auto mb-3" style="width: 100px; height: 100px; overflow: hidden;">
-                        <img class="img-fluid rounded-circle" src="img/emin.jpg" alt="Emil Guliyev">
-                    </div>
-                    <h5 class="mb-2">Emil Guliyev</h5>
-                    <p class="text-muted mb-2">New Immigrant</p>
-                    <p class="fs-5">"MoveMate made my transition to the U.S. so much easier. From finding an apartment to setting up my bank account, they were there every step of the way. I felt welcomed and supported throughout the entire process!"</p>
-                    <div class="d-flex justify-content-center">
-                        <i class="fas fa-star text-secondary"></i>
-                        <i class="fas fa-star text-secondary"></i>
-                        <i class="fas fa-star text-secondary"></i>
-                        <i class="fas fa-star text-secondary"></i>
-                        <i class="fas fa-star text-secondary"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Testimonial 2 -->
-            <div class="col-lg-4 col-md-6 mb-4">
-                <div class="testimonial-item">
-                    <div class="rounded-circle mx-auto mb-3" style="width: 100px; height: 100px; overflow: hidden;">
-                        <img class="img-fluid rounded-circle" src="img/javad.jpg" alt="Javad Javadov">
-                    </div>
-                    <h5 class="mb-2">Javad Javadov</h5>
-                    <p class="text-muted mb-2">New Immigrant</p>
-                    <p class="fs-5">"The team at MoveMate is incredibly professional and attentive. They guided me through everything from visa paperwork to setting up my new home. I couldn’t have done it without their expert help."</p>
-                    <div class="d-flex justify-content-center">
-                        <i class="fas fa-star text-secondary"></i>
-                        <i class="fas fa-star text-secondary"></i>
-                        <i class="fas fa-star text-secondary"></i>
-                        <i class="fas fa-star text-secondary"></i>
-                        <i class="fas fa-star text-secondary"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Testimonial 3 -->
-            <div class="col-lg-4 col-md-6 mb-4">
-                <div class="testimonial-item">
-                    <div class="rounded-circle mx-auto mb-3" style="width: 100px; height: 100px; overflow: hidden;">
-                        <img class="img-fluid rounded-circle" src="img/mushviq.jpg" alt="Mushvig Babirov">
-                    </div>
-                    <h5 class="mb-2">Mushvig Babirov</h5>
-                    <p class="text-muted mb-2">New Immigrant</p>
-                    <p class="fs-5">"Moving to a new country was daunting, but MoveMate made it so much simpler. Their service is reliable and trustworthy, and they go above and beyond to make sure you have everything you need."</p>
-                    <div class="d-flex justify-content-center">
-                        <i class="fas fa-star text-secondary"></i>
-                        <i class="fas fa-star text-secondary"></i>
-                        <i class="fas fa-star text-secondary"></i>
-                        <i class="fas fa-star text-secondary"></i>
-                        <i class="fas fa-star text-secondary"></i>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </div>
-</div>
-<!-- OUR CLIENTS REVIEWS End -->
-
-
-
-<!-- Footer Start -->
-<div class="container-fluid footer py-5 wow fadeIn" data-wow-delay="0.2s">
-    <div class="container py-5">
-        <div class="row g-5">
-            <!-- Contact Info -->
-            <div class="col-md-6 col-lg-6 col-xl-3">
-                <div class="footer-item d-flex flex-column">
-                    <h4 class="text-secondary mb-4">Contact Info</h4>
-                    <a href="#"><i class="fa fa-map-marker-alt me-2"></i> Fairfax, VA, US</a>
-                    <a href="mailto:sales@movemate.me"><i class="fas fa-envelope me-2"></i> sales@movemate.me</a>
-                    <a href="tel:+15715647755" class="mb-3"><i class="fas fa-phone me-2"></i> +1 571 564-7755</a>
-                </div>
-            </div>
-
-            <!-- Follow Us -->
-            <div class="col-md-6 col-lg-6 col-xl-3">
-                <div class="footer-item">
-                    <h4 class="text-secondary mb-4">Follow Us</h4>
-                    <p class="text-white mb-3">Stay connected through our social media channels.</p>
-                    <div class="d-flex align-items-center">
-                        <a class="btn mx-1" href="https://www.facebook.com/movematellc" target="_blank"><i class="fab fa-facebook-f"></i></a>
-                        <a class="btn mx-1" href="https://www.instagram.com/movemate_llc" target="_blank"><i class="fab fa-instagram"></i></a>
-                        <a class="btn mx-1" href="https://www.linkedin.com/company/104455747/admin/dashboard/" target="_blank"><i class="fab fa-linkedin-in"></i></a>
-
-                        
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<!-- Footer End -->
-
-        
-<!-- Copyright Start -->
-<div class="container-fluid copyright py-4" style="background-color: #f8f9fa;">
-    <div class="container">
-        <div class="row g-4 align-items-center">
-            <div class="col-md-6 text-center text-md-start mb-md-0">
-                <span class="text-dark">
-                    <a href="#" class="border-bottom text-dark"><i class="fas fa-copyright text-dark me-2"></i>MoveMate LLC</a>, All rights reserved.
-                </span>
-            </div>
-            <div class="col-md-6 text-center text-md-end text-dark">
-            </div>
-        </div>
-    </div>
-</div>
-<!-- Copyright End -->
-
-
-
-        <!-- Back to Top -->
-        <a href="#" class="btn btn-primary btn-lg-square back-to-top"><i class="fa fa-arrow-up"></i></a>   
-
-        
-    <!-- JavaScript Libraries -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="lib/wow/wow.min.js"></script>
-    <script src="lib/easing/easing.min.js"></script>
-    <script src="lib/waypoints/waypoints.min.js"></script>
-    <script src="lib/counterup/counterup.min.js"></script>
-    <script src="lib/owlcarousel/owl.carousel.min.js"></script>
-    
-
-    <!-- Template Javascript -->
-    <script src="js/main.js"></script>
-    </body>
-
+    <script>
+        document.querySelector('.mobile-toggle')?.addEventListener('click', function() {
+            const navLinks = document.querySelector('.nav-links');
+            const navButtons = document.querySelector('.nav-buttons');
+            if (navLinks && navButtons) {
+                navLinks.style.display = navLinks.style.display === 'flex' ? 'none' : 'flex';
+                navButtons.style.display = navButtons.style.display === 'flex' ? 'none' : 'flex';
+            }
+        });
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+    </script>
+</body>
 </html>
-
-
-
-
